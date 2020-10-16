@@ -1,0 +1,205 @@
+---
+title: "Fig1-S1_causal-model"
+author: "Mitchell Muniak"
+date: "5/23/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggdag)
+library(ggplot2)
+library(ggraph)
+library(dplyr)
+
+```
+
+
+# Create dag object
+
+Dag based on abio
+```{r, out.width="100%", out.height="100%"}
+
+# Microbiome and prost may go both ways
+   # Changed
+# Connect staging age and cci or somehow remove
+   # Removed staging and age
+# Cont. cas inf video, fetermine what to control for through a function
+ppi_dag <- dagify(
+   Overall_Survival ~ ICI_Response,
+   ICI_Response ~ T_cell,
+   T_cell ~ Microbiome + Prostaglandin + ECOG + Age,
+   Microbiome ~ PPI + Prostaglandin,
+   Prostaglandin ~ Age + ECOG + Staging + BMI,
+   PPI ~ CCI,
+   ECOG ~ CCI + Age,
+   BMI ~ ECOG,
+   exposure = "CCI",
+   outcome = "Overall_Survival"
+)
+```
+Simplified/edited dag
+```{r}
+
+# Add back in age, connect to age
+ppi_dag.2 <- dagify(
+   Overall_Survival ~ ICI_Response,
+   ICI_Response ~ T_cell,
+   T_cell ~ Microbiome + Prostaglandin + ECOG,
+   Microbiome ~ PPI + Prostaglandin,
+   Prostaglandin ~ ECOG + BMI + Microbiome,
+   PPI ~ CCI,
+   ECOG ~ CCI,
+   BMI ~ ECOG,
+   exposure = "CCI",
+   outcome = "Overall_Survival", 
+   labels = c("Overall_Survival" = "Overall_Survival",
+                   "ICI_Response" = "ICI_Response",
+                   "T_cell" = "T_cell",
+                   "Microbiome" = "Microbiome",
+                   "PPI" = "PPI",
+                   "Prostaglandin" = "Prostaglandin",
+                   "ECOG" = "ECOG",
+                   "BMI" = "BMI",
+              "CCI" = "CCI")
+)
+
+```
+Plot Dag
+```{r}
+ggdag(ppi_dag.2,
+      text = FALSE, use_labels = "label")
+```
+Backdoor paths
+```{r}
+
+
+dag_paths(ppi_dag.2)
+
+
+
+
+ggdag_paths_fan(ppi_dag.2,
+            node_size = 7,
+            text_size = 3,
+          text = FALSE, 
+          use_labels = "label",
+      spread = 2.5)
+
+
+# adjust_for()
+```
+```{r}
+# Edges won't show
+x <- ggdag_paths(ppi_dag.2,
+            node_size = 4,
+            shadow = TRUE,
+            text_col = "blue")
+
+x.df <- x %>%
+   bind_rows()
+```
+
+
+```{r}
+ggdag_adjustment_set(ppi_dag.2, text = FALSE, use_labels = "label")
+
+
+
+```
+
+View open paths listed and think about how to close
+```{r}
+ppi_dag.2 %>%
+   tidy_dagitty() %>%
+   dag_paths()
+
+```
+
+
+
+
+Adjustment
+```{r}
+
+# surv ~ age + bmi + ppi
+# Double arrow might need to remove
+
+
+
+ggdag_adjustment_set(ppi_dag.2,
+                     shadow = TRUE)
+                     
+                     
+                     
+                     
+                     
+ggdag_adjustment_sets(ppi_dag.2)
+
+ppi_dag.2 %>%
+   tidy_dagitty() %>%
+   dag_paths()
+
+ppi_dag.2 %>%
+   ggdag_paths()
+
+tidy_dagitty(ppi_dag.2)
+
+
+
+ggdag_dseparated(ppi_dag.2, controlling_for = "PPI")
+
+
+ggdag_dseparated(ppi_dag.2, controlling_for = c("PPI", "Microbiome"))
+
+```
+
+
+```{r}
+# # Set colors by categories -- medications, clinical variables, mediators of 
+# # response and outcomes
+# #cfb4de purple patient char
+# #77d1e5 blue meds
+# #aadab4 green mediator
+# #e2bf99 orange result
+# V(g)$color <- c("#cfb4de", "#77d1e5", "#aadab4", "#aadab4", "#e2bf99", "#e2bf99", "#77d1e5", "#aadab4", "#77d1e5", "#77d1e5", "#77d1e5", "#cfb4de", "#cfb4de", "#77d1e5", "#cfb4de", "#cfb4de")
+# 
+# # Modify edge widths to define our hypothesized primary pathway
+# edge.arrow.sizes <- c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1, 0.5, 1, 0.5, 
+#                     1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
+# edge.arrow.widths <- c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1, 0.5, 1, 0.5, 
+#                     1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
+# edge.widths <- c(1, 1, 1, 1, 1, 1, 1, 5, 5, 5, 5, 1, 5, 1, 5, 1, 1, 1, 1, 1, 1, 1,
+#                   1, 1, 1, 1, 1)
+
+# # Create Figure 1, to be manipulated in Adobe Illustrator
+# tkplot(g, 
+#       vertex.label.color="black",
+#       vertex.size = 20,
+#       # edge.arrow.size = edge.arrow.sizes,
+#       # edge.arrow.width = edge.arrow.widths,
+#       # edge.width = edge.widths,
+#       layout = layout.circle
+#       )
+```
+This is figS1 for the paper. More edits will be made in adobe illustrator.
+
+```{r}
+# Add edge labels for citing references
+letters.ext <- c(LETTERS, "AA")
+
+E(g)$label = letters.ext[1:ecount(g)]
+
+# Create figure Supplemental-1, to be manipulated in Adobe Illustrator
+tkplot(ppi_dag,
+       # vertex.label.color = "black",
+       # edge.label.color = "black",
+       # vertex.size=20,
+       # edge.arrow.size = edge.arrow.sizes,
+       # edge.arrow.width = edge.arrow.widths,
+       # edge.width = edge.widths,
+       # layout=layout.circle
+       )
+
+```
