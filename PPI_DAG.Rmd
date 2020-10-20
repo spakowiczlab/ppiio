@@ -2,7 +2,9 @@
 title: "Fig1-S1_causal-model"
 author: "Mitchell Muniak"
 date: "5/23/2019"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -21,37 +23,38 @@ library(dplyr)
 Dag based on abio
 ```{r, out.width="100%", out.height="100%"}
 
-# Microbiome and prost may go both ways
-   # Changed
-# Connect staging age and cci or somehow remove
-   # Removed staging and age
-# Cont. cas inf video, fetermine what to control for through a function
+# # Microbiome and prost may go both ways
+#    # Changed
+# # Connect staging age and cci or somehow remove
+#    # Removed staging and age
+# # Cont. cas inf video, fetermine what to control for through a function
+# ppi_dag <- dagify(
+#    Overall_Survival ~ ICI_Response,
+#    ICI_Response ~ T_cell,
+#    T_cell ~ Microbiome + Prostaglandin + ECOG + Age,
+#    Microbiome ~ PPI + Prostaglandin,
+#    Prostaglandin ~ Age + ECOG + Staging + BMI,
+#    PPI ~ CCI,
+#    ECOG ~ CCI + Age,
+#    BMI ~ ECOG,
+#    exposure = "CCI",
+#    outcome = "Overall_Survival"
+# )
+```
+
+```{r}
+
+# Add back in age, connect to age
 ppi_dag <- dagify(
    Overall_Survival ~ ICI_Response,
    ICI_Response ~ T_cell,
    T_cell ~ Microbiome + Prostaglandin + ECOG + Age,
    Microbiome ~ PPI + Prostaglandin,
-   Prostaglandin ~ Age + ECOG + Staging + BMI,
+   Prostaglandin ~ Age + ECOG + Staging + BMI + Microbiome,
    PPI ~ CCI,
    ECOG ~ CCI + Age,
    BMI ~ ECOG,
-   exposure = "CCI",
-   outcome = "Overall_Survival"
-)
-```
-Simplified/edited dag
-```{r}
-
-# Add back in age, connect to age
-ppi_dag.2 <- dagify(
-   Overall_Survival ~ ICI_Response,
-   ICI_Response ~ T_cell,
-   T_cell ~ Microbiome + Prostaglandin + ECOG,
-   Microbiome ~ PPI + Prostaglandin,
-   Prostaglandin ~ ECOG + BMI + Microbiome,
-   PPI ~ CCI,
-   ECOG ~ CCI,
-   BMI ~ ECOG,
+   # What should exposure be?
    exposure = "CCI",
    outcome = "Overall_Survival", 
    labels = c("Overall_Survival" = "Overall_Survival",
@@ -62,25 +65,26 @@ ppi_dag.2 <- dagify(
                    "Prostaglandin" = "Prostaglandin",
                    "ECOG" = "ECOG",
                    "BMI" = "BMI",
+              "Age" = "Age",
               "CCI" = "CCI")
 )
 
 ```
 Plot Dag
 ```{r}
-ggdag(ppi_dag.2,
+ggdag(ppi_dag,
       text = FALSE, use_labels = "label")
 ```
 Backdoor paths
 ```{r}
 
 
-dag_paths(ppi_dag.2)
+dag_paths(ppi_dag)
 
 
 
 
-ggdag_paths_fan(ppi_dag.2,
+ggdag_paths_fan(ppi_dag,
             node_size = 7,
             text_size = 3,
           text = FALSE, 
@@ -92,18 +96,17 @@ ggdag_paths_fan(ppi_dag.2,
 ```
 ```{r}
 # Edges won't show
-x <- ggdag_paths(ppi_dag.2,
+ggdag_paths(ppi_dag,
             node_size = 4,
             shadow = TRUE,
             text_col = "blue")
 
-x.df <- x %>%
-   bind_rows()
+
 ```
 
 
 ```{r}
-ggdag_adjustment_set(ppi_dag.2, text = FALSE, use_labels = "label")
+ggdag_adjustment_set(ppi_dag, text = FALSE, use_labels = "label")
 
 
 
@@ -111,7 +114,7 @@ ggdag_adjustment_set(ppi_dag.2, text = FALSE, use_labels = "label")
 
 View open paths listed and think about how to close
 ```{r}
-ppi_dag.2 %>%
+ppi_dag %>%
    tidy_dagitty() %>%
    dag_paths()
 
@@ -123,35 +126,35 @@ ppi_dag.2 %>%
 Adjustment
 ```{r}
 
-# surv ~ age + bmi + ppi
-# Double arrow might need to remove
-
-
-
-ggdag_adjustment_set(ppi_dag.2,
-                     shadow = TRUE)
-                     
-                     
-                     
-                     
-                     
-ggdag_adjustment_sets(ppi_dag.2)
-
-ppi_dag.2 %>%
-   tidy_dagitty() %>%
-   dag_paths()
-
-ppi_dag.2 %>%
-   ggdag_paths()
-
-tidy_dagitty(ppi_dag.2)
-
-
-
-ggdag_dseparated(ppi_dag.2, controlling_for = "PPI")
-
-
-ggdag_dseparated(ppi_dag.2, controlling_for = c("PPI", "Microbiome"))
+# # surv ~ age + bmi + ppi
+# # Double arrow might need to remove
+# 
+# 
+# 
+# ggdag_adjustment_set(ppi_dag.2,
+#                      shadow = TRUE)
+#                      
+#                      
+#                      
+#                      
+#                      
+# ggdag_adjustment_sets(ppi_dag.2)
+# 
+# ppi_dag.2 %>%
+#    tidy_dagitty() %>%
+#    dag_paths()
+# 
+# ppi_dag.2 %>%
+#    ggdag_paths()
+# 
+# tidy_dagitty(ppi_dag.2)
+# 
+# 
+# 
+# ggdag_dseparated(ppi_dag.2, controlling_for = "PPI")
+# 
+# 
+# ggdag_dseparated(ppi_dag.2, controlling_for = c("PPI", "Microbiome"))
 
 ```
 
@@ -186,20 +189,20 @@ ggdag_dseparated(ppi_dag.2, controlling_for = c("PPI", "Microbiome"))
 This is figS1 for the paper. More edits will be made in adobe illustrator.
 
 ```{r}
-# Add edge labels for citing references
-letters.ext <- c(LETTERS, "AA")
-
-E(g)$label = letters.ext[1:ecount(g)]
-
-# Create figure Supplemental-1, to be manipulated in Adobe Illustrator
-tkplot(ppi_dag,
-       # vertex.label.color = "black",
-       # edge.label.color = "black",
-       # vertex.size=20,
-       # edge.arrow.size = edge.arrow.sizes,
-       # edge.arrow.width = edge.arrow.widths,
-       # edge.width = edge.widths,
-       # layout=layout.circle
-       )
+# # Add edge labels for citing references
+# letters.ext <- c(LETTERS, "AA")
+# 
+# E(g)$label = letters.ext[1:ecount(g)]
+# 
+# # Create figure Supplemental-1, to be manipulated in Adobe Illustrator
+# tkplot(ppi_dag,
+#        # vertex.label.color = "black",
+#        # edge.label.color = "black",
+#        # vertex.size=20,
+#        # edge.arrow.size = edge.arrow.sizes,
+#        # edge.arrow.width = edge.arrow.widths,
+#        # edge.width = edge.widths,
+#        # layout=layout.circle
+#        )
 
 ```
