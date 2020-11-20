@@ -1,0 +1,225 @@
+---
+title: 'Figure 3: combined model'
+author: "Rebecca Hoyd"
+date: "May 13, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(survminer)
+library(survival)
+library(survMisc)
+library(ggplot2)
+library(dplyr)
+library(glue)
+library(glmnet)
+```
+
+
+```{r}
+db <- readRDS("C:/Users/muni11/Box/abio/manuscript/data/from_processing/deidentdb_timing.RDS")
+
+```
+
+```{r}
+check.window <- function(vect, per){
+  wind <- per[1]:per[2]
+  wind <- glue_collapse(as.character(wind), sep = ",|,")
+  wind <- paste(",", wind, ",", sep = "")
+  ifelse(grepl(pattern = wind, x = vect), 1, 0)
+}
+
+db <- db %>%
+  mutate(abxdays.to.iostart = paste(",", abxdays.to.iostart, ",", sep = ""),
+         sterdays.to.start = paste(",", sterdays.to.start, ",", sep = ""),
+         abx.28.28 = check.window(abxdays.to.iostart, c(-28,28)),
+         steroid.28.28 = check.window(sterdays.to.start, c(-28,28)))
+```
+
+# A) Survival curves
+```{r}
+sfit <- survfit(Surv(days, vitalstatus) ~ abx.28.28 + steroid.28.28, data = db)
+
+comb_curv <- ggsurvplot(fit = sfit, conf.int = FALSE, risk.table = TRUE, pval = TRUE, ylab = "", 
+                        legend = "none", legend.title = "", 
+                        legend.labs = c("ABx, CS=0", "ABx=0,CS=1",
+                                        "ABx=1,CS=0", "ABx,CS = 1"),
+                        font.legend = c(12), fontsize = 6, xlab = "Days", pval.coord = c(0,0.08), 
+                        palette = "Dark2")
+
+comb_curv
+```
+
+```{r}
+comb_curv.leg <- ggsurvplot(fit = sfit, conf.int = FALSE, risk.table = TRUE, pval = TRUE,
+                            legend = "right", legend.title = "", 
+                            legend.labs = c("ABx, CS=0", "ABx=0,CS=1", 
+                                            "ABx=1,CS=0", "ABx,CS = 1"), 
+                            font.legend = c(12), fontsize = 6, xlab = "Days",
+                            pval.coord = c(0,0.08), palette = "Dark2")
+
+comb_curv.leg
+```
+
+
+# B) Combined model for all cancers
+```{r}
+db <- db %>%
+  filter(
+    cancer.name != "pancreatic cancer" & cancer.name != "Prostate" & cancer.name != "Unknown") %>%
+  mutate(ABx = abx.28.28,
+         CS = steroid.28.28,
+         ECOG = ecog,
+         CCI = ifelse(comorb.score <= 1, 0, 1),
+         BMI = bmi.calc,
+         Sex = sex,
+         Age = age,
+         `Stage IV` = ifelse(staging == 4, 1, 0))
+
+cph <- coxph(Surv(days, vitalstatus) ~ ABx + CS + ECOG + CCI + `Stage IV` + BMI + Sex + Age, data = db)
+
+ggforest(cph) 
+
+bub <- db %>% group_by(cancer.name, vitalstatus) %>% tally()
+```
+
+
+# Loop performing percentile lasso to generate data for remaining panels
+
+Please try to avoid unnecessarily rerunning the followingcode, it take ~20 minutes to complete this loop.
+```{r perform percentile lasso takes a long time, eval = F}
+# allcancers <- c('Other', 'Melanoma', 'Non-Small Cell Lung Cancer', 'Head and Neck Carcinoma', 'Renal Cell Carcinoma', 'Sarcoma', 'Bladder Cancer')
+allcancers <- unique(db$cancer.name)
+
+
+all.percentile.res <- list()
+canc.percentile.res <- list()
+
+box.res <- list()
+canc.box.res <- list()
+# 
+# v <- lapply(allcancers, function(x) db %>% 
+#          filter(!is.na(ECOG) & !is.na(BMI) & !is.na(`Stage IV`) & !is.na(Age)) %>%
+#     filter(cancer.name == x))
+# 
+# c <- "Unknown"
+
+for(c in allcancers){
+  tmp <- db %>%
+    filter(!is.na(ECOG) & !is.na(BMI) & !is.na(`Stage IV`) & !is.na(Age)) %>%
+    filter(cancer.name == c)
+  
+  x <- tmp %>%
+    mutate(Male = ifelse(Sex == "Male", 1, 0)) %>%
+    select(ABx, CS, ECOG, CCI, BMI, Age, `Stage IV`, Male) %>%
+    as.matrix()
+  
+  set.seed(112358)
+  fit <- glmnet(x, Surv(tmp$days, tmp$vitalstatus), family = "cox", maxit = 1000)
+  for(i in 1:1000){
+    try({
+    cv.fit <- cv.glmnet(x, y = Surv(tmp$days, tmp$vitalstatus), family="cox", maxit = 1000)
+    
+    Coefficients <-  coef(fit, s = cv.fit$lambda.min)
+    Active.Index <- which(Coefficients != 0)
+    
+    canc.percentile.res[[i]] <- as.data.frame(cbind(cancer = c,
+                                                    lambdahat = cv.fit$lambda.min,
+                                                    covcount = length(Active.Index),
+                                                    whichco=glue_collapse(Coefficients@Dimnames[[1]][Active.Index],
+                                                                            sep = "+")))
+    
+    canc.box.res[[i]] <- as.data.frame(cbind(term = Coefficients@Dimnames[[1]][Active.Index], 
+                                        HR = exp(Coefficients[Active.Index]),
+                                        cancer = c))
+    })
+  }
+  
+  all.percentile.res[[c]] <- bind_rows(canc.percentile.res)
+  canc.percentile.res <- list()
+  
+  box.res[[c]] <- bind_rows(canc.box.res)
+  canc.box.res <- list()
+}
+
+lassores <- bind_rows(all.percentile.res)
+lassores$lambdahat <- as.numeric(lassores$lambdahat)
+lassores$covcount <- as.factor(lassores$covcount)
+
+# saveRDS(lassores, "fig4_percentile-lasso.RDS")
+# saveRDS(box.res, "fig4-sup_percent-appearance-and-hr_boxplots")
+
+# summary(as.numeric(db$days))
+# summary(db$vitalstatus)
+
+
+
+
+
+
+    # filter(!is.na(ECOG) & !is.na(BMI) & !is.na(`Stage IV`)) %>%
+
+      
+# summary(db$ECOG) 
+# summary(db$BMI) 
+# summary(db$`Stage IV`)
+# unique(db$cancer.name)
+```
+
+```{r}
+# lassores <- readRDS("fig4_percentile-lasso.RDS")
+# box.res <- readRDS("fig4-sup_percent-appearance-and-hr_boxplots.RDS")
+```
+
+```{r}
+box.res <- bind_rows(box.res)
+```
+
+# C) Boxplots of HR results from lasso with barplots of how frequently models selecting given covariates were chosen
+
+```{r}
+box.res$HR <- as.numeric(box.res$HR)
+
+box.res  %>%
+  filter(!is.na(term)) %>%
+  mutate(cancer = ifelse(cancer == "Head and Neck Carcinoma", "Head and Neck \nCarcinoma", 
+                         ifelse(cancer == "Non-Small Cell Lung Cancer", "Non-Small Cell \nLung Cancer", 
+                                ifelse(cancer == "Renal Cell Carcinoma", "Renal Cell \nCarcinoma", cancer)))) %>%
+  ggplot(aes(x = term, y = HR, fill = term)) +
+  facet_wrap(vars(cancer), strip.position = "left", scales = "free", nrow = 9) + 
+  geom_boxplot(alpha = .4) +
+  geom_point(aes(color = term)) +
+  geom_hline(aes(fill = term), yintercept = 1, linetype =2)+
+  scale_color_brewer(aesthetics = c("color", "fill"), palette = "Dark2") +
+  theme_bw() +
+  theme(plot.title=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.text.x=element_text(face="bold"),
+        axis.title=element_blank(),
+        strip.text.y = element_text(hjust=0,vjust = 1,angle=180,face="bold", size = 12)) +
+  coord_flip() 
+```
+
+
+```{r}
+box.res %>%
+  filter(!is.na(term)) %>%
+  ggplot(aes(x = term, fill = term)) + 
+  geom_bar() +
+  facet_wrap(vars(cancer), scales = "free_y", strip.position = "left",nrow = 9) +
+  scale_color_brewer(aesthetics = c("color", "fill"), palette = "Dark2", name = "Covariate") +
+  labs(x = "", y = "") +
+  theme_bw() +
+  theme(plot.title=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.text.x=element_text(face="bold"),
+        axis.title=element_blank(),
+        strip.text.y = element_text(hjust=0,vjust = 1,angle=180,face="bold"),
+        panel.spacing = unit(1.2, "lines")) +
+  coord_flip()+
+  guides(fill = guide_legend(reverse = TRUE)) 
+```

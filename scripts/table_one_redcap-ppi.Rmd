@@ -1,0 +1,257 @@
+---
+title: "table_one-ppi"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(tableone)
+library(forcats)
+library(glue)
+```
+
+
+```{r}
+cancer.copy <- c("1 non-small cell lung cancer
+2 small cell lung cancer
+3 melanoma
+4 renal cell carcinoma
+5 head and neck carcinoma
+6 merkel cell carcinoma
+7 Hodgkin lymphoma
+8 breast cancer
+9 colon cancer
+10 pancreatic cancer
+11 Sarcoma
+12 Prostate
+13 bladder cancer
+14 AML
+15 ALL
+17 Other") %>%
+  strsplit(., split = "\n") %>%
+  unlist
+
+cancer.key <- 
+  data.frame(
+    cancer =  cancer.copy %>%
+      gsub("(\\d+).*", "\\1", .) %>%
+      as.integer(),
+    cancer.name = cancer.copy %>%
+      gsub("\\d+ (.*)", "\\1", .),
+    stringsAsFactors = FALSE
+  )
+```
+
+load data
+```{r}
+db <- readRDS("T:/Labs/Spakowicz/data/exoio/table_one_db.RDS")
+
+```
+
+function
+```{r}
+check.window <- function(vect, per){
+ wind <- per[1]:per[2]
+ wind <- glue_collapse(as.character(wind), sep = ",|,")
+ wind <- paste(",", wind, ",", sep = "")
+ ifelse(grepl(pattern = wind, x = vect), 1, 0)
+}
+```
+
+reduce db
+```{r}
+# reduced <- db %>%
+#   filter(!is.na(cancer)) %>%
+#   filter(!tcc_id == "") %>%
+#   left_join(cancer.key) 
+
+    
+
+
+ppi_long <- db %>%
+  select(cancer, ppi_start, iostart, contains("stop"), -contains("subs"), io_2_start, io_3_start, vitalstatus, age, bmi.calc, ecog, sex, contains("ppi"), -contains("other_ppi"), -contains("ppi_reason"), 
+        immunotherapy, other_io, staging, comorb.score, deathdate, lastcontact) %>%
+  filter(!is.na(cancer)) %>%
+  # filter(!tcc_id == "") %>%
+  filter(!is.na(ppi_start) & ppi_start != "") %>%
+  mutate(ppidays.to.iostart =  as.Date(ppi_start) - as.Date(iostart)) %>%
+  mutate(days.to.ioend =  as.Date(iostopdate) - as.Date(iostart)) %>%
+  left_join(cancer.key)
+
+ppi_long_tcc <- ppi_long %>%
+  filter(!tcc_id == "")
+
+
+```
+
+summary
+```{r}
+summary <- ppi_long %>%
+  group_by(cancer.name) %>%
+  summarise(n()) %>%
+  filter(`n()` > 3) %>%
+  filter(!cancer.name == "Other")
+
+
+summary_tcc <- ppi_long_tcc %>%
+  group_by(cancer.name) %>%
+  summarise(n()) %>%
+  filter(`n()` > 3) %>%
+  filter(!cancer.name == "Other")
+
+```
+```{r}
+# Create key for naming immunotherapy codes
+ionames <- data.frame(immunotherapy = c(1,2,3,4,5,6,7,8,9,10), 
+                      Immunotherapy = c("Nivolumab", "Pembrolizumab", 
+                                        "Atezolizumab", "Ipilimumab", 
+                                        "Nivolumab + Ipilimumab", 
+                                        "Durvalumab + Tremelimumab", 
+                                        "Tremelimumab", "Nivolumab + Chemotherapy",
+                                        "Durvalumab", "Other"),
+                      stringsAsFactors = FALSE)
+
+# Select and adjust dataframe for Table 1
+coxdf <- ppi_long[which(ppi_long$cancer.name %in% c(summary$cancer.name)),] %>%
+  select(record_id, vitalstatus, age, bmi.calc, ecog, sex, cancer.name, contains("ppi"), -contains("other_ppi"), -contains("ppi_reason"), 
+        immunotherapy, other_io, staging, comorb.score) %>%
+  left_join(ionames) %>%
+  mutate(`ECOG PS` = fct_relevel(ifelse(ecog > 2, ">2", ecog), "0","1","2",">2"),
+         Staging  = ifelse(staging == 5, "Unknown", staging),
+         BMI = bmi.calc,
+         Age = age,
+         Cancer = cancer.name, 
+         CCI = ifelse(comorb.score <= 1, "0-1", ">2"),
+         Sex = sex,
+          Immunotherapy = ifelse(Immunotherapy == "Nivolumab + Chemotherapy",
+                                "Other", Immunotherapy),
+         Immunotherapy = as.factor(Immunotherapy),
+         Immunotherapy = fct_relevel(Immunotherapy, "Atezolizumab", "Durvalumab",
+                                     "Durvalumab + Tremelimumab", "Ipilimumab", 
+                                     "Nivolumab", "Nivolumab + Ipilimumab", 
+                                     "Pembrolizumab", "Tremelimumab", "Other"))
+
+
+coxdf_tcc <- ppi_long_tcc[which(ppi_long_tcc$cancer.name %in% c(summary$cancer.name)),] %>%
+  select(record_id, vitalstatus, age, bmi.calc, ecog, sex, cancer.name, contains("ppi"), -contains("other_ppi"), -contains("ppi_reason"), 
+        immunotherapy, other_io, staging, comorb.score) %>%
+  left_join(ionames) %>%
+  mutate(`ECOG PS` = fct_relevel(ifelse(ecog > 2, ">2", ecog), "0","1","2",">2"),
+         Staging  = ifelse(staging == 5, "Unknown", staging),
+         BMI = bmi.calc,
+         Age = age,
+         Cancer = cancer.name, 
+         CCI = ifelse(comorb.score <= 1, "0-1", ">2"),
+         Sex = sex,
+          Immunotherapy = ifelse(Immunotherapy == "Nivolumab + Chemotherapy",
+                                "Other", Immunotherapy),
+         Immunotherapy = as.factor(Immunotherapy),
+         Immunotherapy = fct_relevel(Immunotherapy, "Atezolizumab", "Durvalumab",
+                                     "Durvalumab + Tremelimumab", "Ipilimumab", 
+                                     "Nivolumab", "Nivolumab + Ipilimumab", 
+                                     "Pembrolizumab", "Tremelimumab", "Other"))
+```
+##CHECK MEDICATION; check p val for different catagory between CCI/ECOG &ppi
+# Creating table 1
+
+```{r}
+listVars <- c("BMI", "Age", "Sex", "ECOG PS", "CCI", "Cancer", "Staging", "Immunotherapy", "ppi")
+catVars <- c("Sex", "Cancer", "Immunotherapy", "ECOG PS", "CCI", "Staging", "ppi")
+table1 <- CreateTableOne(vars = listVars,
+                         data = coxdf,
+                         factorVars = catVars)
+tbl <- print(table1)
+write.csv(tbl, "T:/Labs/Spakowicz/data/exoio/table1.csv")
+
+COMPARE <- coxdf %>%
+  group_by(CCI, ppi) %>%
+  tally()
+
+ggplot(coxdf,aes(x=CCI, y=ppi, fill = ppi))+
+  geom_bar(stat="identity")
+
+
+```
+
+
+```{r}
+
+listVars <- c("BMI", "Age", "Sex", "ECOG PS", "CCI", "Cancer", "Staging", "Immunotherapy", "ppi")
+catVars <- c("Sex", "Cancer", "Immunotherapy", "ECOG PS", "CCI", "Staging", "ppi")
+table1_tcc <- CreateTableOne(vars = listVars,
+                         data = coxdf_tcc,
+                         factorVars = catVars)
+tbl_tcc <- print(table1_tcc)
+write.csv(tbl_tcc, "T:/Labs/Spakowicz/data/exoio/table1_tcc.csv")
+
+COMPARE_tcc <- coxdf_tcc %>%
+  group_by(CCI, ppi) %>%
+  tally()
+
+ggplot(coxdf_tcc,aes(x=CCI, y=ppi, fill = ppi))+
+  geom_bar(stat="identity")
+
+
+```
+
+
+What I need:
++ PPI stop dates
++ Surgical collection dates (look at the scratch sheet)
+  + time from collection to last follow up or death (it is in
++ How to connect ppi start and stop dates by a line
++ Add second ppi use date
+
+
+
+```{r}
+
+
+# flow_comp %>%
+#   ggplot(aes(x = days.from.start, y = subject)) +
+#   # Samples colored based on response
+#   geom_point(aes(color = response, shape = arm))
+
+
+
+
+ppi_long %>%
+    ggplot() +
+    geom_point(aes(x = ppidays.to.iostart, y = as.numeric(as.factor(record_id)), color = ppidays.to.iostart <= 0)) +
+    geom_point(aes(x = days.to.ioend, y = as.numeric(as.factor(record_id)))) +
+    labs(title="PPI and IO Timeline for Each Patient",
+        y ="Patient", x = "PPI and IO Timeline (IO start = 0")
+    
+
+ppi_long %>%
+  filter(ppidays.to.iostart >= -60) %>%
+    ggplot() +
+    geom_point(aes(x = ppidays.to.iostart, y = as.numeric(as.factor(record_id)), color = ppidays.to.iostart <= 0)) +
+    geom_point(aes(x = days.to.ioend, y = as.numeric(as.factor(record_id)))) +
+    labs(title="PPI and IO Timeline for Each Patient \n (filtered to PPIs 60 days before IO start)",
+        y ="Patient", x = "PPI and IO Timeline (IO start = 0")
+
+
+ppi_long_tcc %>%
+    ggplot() +
+    geom_point(aes(x = ppidays.to.iostart, y = as.numeric(as.factor(record_id)), color = ppidays.to.iostart <= 0)) +
+    geom_point(aes(x = days.to.ioend, y = as.numeric(as.factor(record_id)))) +
+    labs(title="PPI and IO Timeline for Each Patient with TCC Data",
+        y ="Patient", x = "PPI and IO Timeline (IO start = 0")
+
+ppi_long_tcc %>%
+  filter(ppidays.to.iostart >= -365) %>%
+    ggplot() +
+    geom_point(aes(x = ppidays.to.iostart, y = as.numeric(as.factor(record_id)), color = ppidays.to.iostart <= 0)) +
+    geom_point(aes(x = days.to.ioend, y = as.numeric(as.factor(record_id)))) +
+    labs(title="PPI and IO Timeline for Each Patient with TCC Data \n (filtered to PPIs 365 days before IO start)",
+        y ="Patient", x = "PPI and IO Timeline (IO start = 0")
+
+
+```
+
+
+
+

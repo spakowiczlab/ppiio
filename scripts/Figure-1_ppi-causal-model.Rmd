@@ -1,0 +1,91 @@
+---
+title: "Dag-causal-model"
+author: "Mitchell Muniak"
+date: "10/22/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggdag)
+library(ggplot2)
+library(ggraph)
+library(dplyr)
+
+```
+
+
+# Create dag object for model
++ Each term below will act as a 'node'
++ The dagify function allows for pathways between different nodes
++ For example 'Overall_Survival ~ ICI_Response' means the ICI_Response node leads to the Overall_Survival node
++ Further, 'Prostaglandin ~ Age + ECOG + Staging + BMI + Microbiome' means that Age, ECOG, Staging, BMI, and Microbiome all lead to the Prostaglandin node independently
+```{r}
+
+ppi_dag <- dagify(
+   Overall_Survival ~ ICI_Response,
+   ICI_Response ~ T_cell,
+   T_cell ~ Microbiome + Prostaglandin + ECOG + Age,
+   Microbiome ~ PPI + Prostaglandin,
+   Prostaglandin ~ Age + ECOG + Staging + BMI + Microbiome,
+   PPI ~ CCI,
+   ECOG ~ CCI + Age,
+   BMI ~ ECOG,
+   # Indicate the starting node
+   exposure = "CCI",
+   # Indicate the final node
+   outcome = "Overall_Survival",
+   # Assign labels to each node for better visualization 
+   labels = c("Overall_Survival" = "Overall_Survival",
+                   "ICI_Response" = "ICI_Response",
+                   "T_cell" = "T_cell",
+                   "Microbiome" = "Microbiome",
+                   "PPI" = "PPI",
+                   "Prostaglandin" = "Prostaglandin",
+                   "ECOG" = "ECOG",
+                   "BMI" = "BMI",
+              "Age" = "Age",
+              "CCI" = "CCI",
+              "Staging" = "Staging")
+)
+
+```
+
+# Plot Dag object in causal model
+```{r}
+# This will plot the nodes and pathways indicated in the 'ppi_dag' object
+# Text over each node is canceled in favor of a label pointed to each node. This allows for a clearer representation.
+ggdag(ppi_dag, text = FALSE, use_labels = "label") +
+   # The model is saved as a pdf to provide a clearer image
+   ggsave("../figures/ppi_dag.pdf", width = 10, height = 10)
+```
+Pathway visualization
+```{r}
+# Due to the nature of this model, there  are many different pathways from the exposure to outcome node. The below function color codes each pathway.
+ggdag_paths_fan(ppi_dag,
+            node_size = 7,
+            text_size = 3,
+          text = FALSE,
+          # Labels used for better visualization
+          use_labels = "label",
+      spread = 2.5) +
+   # The model is saved as a pdf to provide a clearer image
+   ggsave("../figures/ppi_dag_col-paths.pdf", width = 10, height = 10)
+
+```
+```{r}
+# Like the above model, this model shows each pathway present in the 'ppi_dag' object. However, this function plots each pathway as a separate model.
+ggdag_paths(ppi_dag,
+            node_size = 4,
+            text = FALSE,
+          # Labels used for better visualization
+            use_labels = "label",
+            shadow = TRUE,
+            text_col = "blue") +
+   # The model does not scale well in an RMD or HTML, so I recommend viewing the pdf that I save below
+   ggsave("../figures/ppi_dag_full-paths.pdf", width = 20, height = 20)
+
+```

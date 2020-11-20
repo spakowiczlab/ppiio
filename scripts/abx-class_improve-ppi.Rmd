@@ -1,0 +1,621 @@
+---
+title: "abx_class-assign_improve"
+author: "Rebecca Hoyd"
+date: "April 15, 2019"
+output: html_document
+---
+
+The purpose of this document is to process the raw data from the warehouse pulls onto the redcap data frame. This document will be split between the actual assignment of medications (first half) and the investigation of different stratification methods etc. (second half). At the time of creation, I have only copied over and edited what code is currently necessary to recreate the processed data used in the further analyses.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if (!require("install.load")) {
+  install.packages("install.load")
+  library(install.load)
+}
+
+# CRAN packages
+list.of.packages <- c("tidyverse", "glue", "readxl")
+
+install.load::install_load(list.of.packages)
+```
+
+
+```{r load data, include = FALSE}
+# Line where you load the db resulting from format and filter
+load("T:/Labs/Spakowicz/data/exoio/db-meds.RData")
+db <- read.csv("T:/Labs/Spakowicz/data/exoio/format_output.csv")
+
+
+# This should be in T drive
+comorb <-read_excel("T:/Labs/Spakowicz/data/exoio/CharlsonScore_Presley_08272019 acj.xlsx", sheet = 2)
+# comorb.2 <-read_excel("~/controlled/CharlsonScore_Presley_07152019_Addtl.xlsx")
+#steroids <- read_excel("~/controlled/corticosteroid_study678.xlsx", sheet = 2)
+
+# This should be in T drive 
+steroids <- readRDS("T:/Labs/Spakowicz/data/exoio/steroids_validate.RDS")
+sterfun <- read.table("T:/Labs/Spakowicz/data/exoio/steroid-dbid-key.TSV") 
+bets <- sterfun[1,]
+sterfun[1,] <- sterfun[25,]
+sterfun[25,] <- bets
+
+stergenkey <- unique(sterfun[c("DBID", "Generic.ID")])
+
+# thromplate <- read_excel("~/controlled/MarAdmin_Thrombin_Inhibitors_study678.xlsx",range = cell_rows(2:30602))
+
+noio <- c(900489173, 980119036, 980187416, 980374070, 980412602, 980495473, 980524866, 980526132, 980543006, 980546304, 980607566, 980622068, 900435346, 907268666, 980360074, 980282827, 980450586, 907227211, 907447227, 900215730, 980484225, 907178894, 970337309, 907897766, 908280483, 980281409, 970014582, 907134292, 980346747, 906232022, 980445076, 908104037, 980465933, 907777800, 980074180, 908177110, 980081274, 908058264, 900516135, 907613047, 980327382, 980398704)
+
+# comorb <- comorb %>%
+#   filter(!MRN %in% comorb.2$MRN)
+# comorb.2$`TOTAL SCORE` = comorb.2$Total_Charlson
+# comorb <- bind_rows(comorb, comorb.2)
+
+comorb <- comorb %>%
+  mutate(record_id = as.character(MRN),
+         comorb.score = Total) %>%
+  select(record_id, comorb.score)
+
+
+db <- db %>%
+  filter(!(record_id %in% noio)) %>%
+  left_join(., comorb) %>%
+  mutate(othercancer = ifelse(is.na(cancer.name), "Unknown", othercancer),
+         cancer.name = ifelse(is.na(cancer.name), "Unknown", cancer.name))
+
+db2 <- db
+
+meds <- meds %>%
+  filter(ROUTE != "Apply externally")
+```
+
+# Create atb key and assign antibiotic column to meds
+
+Some quick notes on these generic categories:
+  Sulfamethoxazole is always prescribed with Trimethoprim
+  Piperacillin is always prescribed with Tazobactam
+  Imipenem is prescribed with Cilastatin
+  
+```{r make abx dfs}
+blac <- c("penicillin", "Amoxicillin", "Ampicillin", "Piperacillin", "Cefalexin", "Cephalexin", "Ceftriaxone", "Ceftazidime", "Cefepime", "Aztreonam", "Imipenem")
+blacname <- rep("BetaLactam", length(blac))
+BLactam <- as.data.frame(cbind(blacname, blac))
+colnames(BLactam) <- c("Class", "Antibiotic")
+
+FQ <- c("Ciprofloxacin", "levofloxacin", "Moxifloxacin")
+FQnames <- rep("Fluoroquinolone", length(FQ))
+FQ <- as.data.frame(cbind(FQnames, FQ))
+colnames(FQ) <- c("Class", "Antibiotic")
+
+macabx <- c("Azithromycin", "Clarithromycin", "Erythromycin")
+macnam <- rep("Macrolide", length(macabx))
+macrolides <- as.data.frame(cbind(macnam, macabx))
+colnames(macrolides) <- c("Class", "Antibiotic")
+
+tetabx <- c("Doxycycline", "Tetracycline", "Minocycline")
+tetnam <- rep("Tetracycline", length(tetabx))
+tetracyclines <- as.data.frame(cbind(tetnam, tetabx))
+colnames(tetracyclines) <- c("Class", "Antibiotic")
+
+othabx <- c("Linezolid", "Daptomycin")
+othnam <- rep("Other.Antibacterial", length(othabx))
+others <- as.data.frame(cbind(othnam, othabx))
+colnames(others) <- c("Class", "Antibiotic")
+
+antvir <- c("Acyclovir", "Ganciclovir", "Valacyclovir", "Valaciclovir", "Valganciclovir", "Foscarnet", "Oseltamivir")
+antvirnam <- rep("Antiviral", length(antvir))
+antiviral <- as.data.frame(cbind(antvirnam, antvir))
+colnames(antiviral) <- c("Class", "Antibiotic")
+
+antfun <- c("Fluconazole", "Voriconazole", "Posaconazole", "Caspofungin", "Micafungin")
+antfunnam <- rep("Antifungal", length(antfun))
+antifungals <- as.data.frame(cbind(antfunnam, antfun))
+colnames(antifungals) <- c("Class", "Antibiotic")
+
+vanc <- rep("Vancomycin", 2)
+trim <- rep("Sulfamethoxazole", 2)
+clin <- rep("Clindamycin", 2)
+metr <- rep("Metronidazole", 2)
+```
+
+```{r combine to key}
+abxkey <- as.data.frame(rbind(BLactam, FQ, macrolides, tetracyclines, others, antiviral, antifungals))
+abxkey <- bind_cols(lapply(abxkey, function(x) as.character(x)))
+abxkey <- as.data.frame(rbind(abxkey, vanc, trim, clin, metr))
+
+abxkey$Class <- as.character(abxkey$Class)
+abxkey$Antibiotic <- as.character(abxkey$Antibiotic)
+abxkey$organism.type <- ifelse(abxkey$Class == "Antifungal", "Antifungal", 
+                       ifelse(abxkey$Class == "Antiviral", "Antiviral", "Antibacterial"))
+```
+
+```{r assign classes to meds}
+classes <- vector(length = length(meds$GENERIC_NAME))
+
+i <- 5
+for(i in 1:length(abxkey$Antibiotic)){
+  x <- grep(x = meds$MED_DESCRIPTION, pattern = abxkey$Antibiotic[i], ignore.case = TRUE)
+  classes[x] <- abxkey$Antibiotic[i]
+  
+}
+ 
+check <- as.data.frame(cbind(meds$GENERIC_NAME, classes)) 
+y <- grep(check[,2], pattern = "FALSE", ignore.case = TRUE)
+check[y,]
+classes[y] <- "levofloxacin"
+```
+
+```{r}
+meds$Antibiotic <- classes
+meds <- abxkey %>%
+  mutate(abxClass = Class) %>%
+  dplyr::select(-Class) %>%
+  left_join(meds, .) %>%
+  mutate(Antibacterial = ifelse(organism.type == "Antibacterial", 1, 0)) %>%
+  mutate(Antiviral = ifelse(organism.type=="Antiviral", 1, 0)) %>%
+  mutate(Antifungal = ifelse(organism.type == "Antifungal", 1, 0))
+
+meds <- meds[!duplicated(meds),] 
+```
+
+###Break to make list of meds for supplemental table S3 (Is it also a figure now?)
+```{r, eval = F}
+restrictedmeds <- meds %>%
+  filter(days.abx.to.iostart >= -28 & days.abx.to.iostart <= 28)
+
+```
+
+```{r, eval = F}
+gen.meds.labs <- c("Acyclovir", "Amoxicillin", "Amoxicillin-Clavulanate", "Ampicillin", "Ampicillin-Sulbactam", "Azithromycin", "Aztreonam", "Caspofungin", "Cefepime", "Ceftriaxone", "Ciprofloxacin", "Clarithromycin", "Clindamycin", "Daptomycin", "Doxycycline", "Erythromycin", "Fluconazole", "Levofloxacin", "Linezolid", "Metronidazole", "Minocycline", "Oseltamivir", "Penicillin-G", "Penicillin-V", "Piperacillin-Tazobactam", "Sulfamethoxazole-Trimethoprim", "Valacyclovir", "Vancomycin", "Voriconazole", "Cephalexin", "Moxifloxacin")
+
+gen.meds.pat <- c("Acyclovir", "Amoxicillin", "Clavulanate", "Ampicillin", "Sulbactam", "Azithromycin", "Aztreonam", "Caspofungin", "Cefepime", "Ceftriaxone", "Ciprofloxacin", "Clarithromycin", "Clindamycin", "Daptomycin", "Doxycycline", "Erythromycin", "Fluconazole", "Levofloxacin", "Linezolid", "Metronidazole", "Minocycline", "Oseltamivir", "Penicillin G", "Penicillin V", "Piperacillin", "Sulfamethoxazole", "Valacyclovir", "Vancomycin", "Voriconazole", "Cephalexin", "Moxifloxacin")
+
+
+classes <- vector(length = length(restrictedmeds$GENERIC_NAME))
+
+i <- 5
+for(i in 1:length(gen.meds.pat)){
+  x <- grep(x = restrictedmeds$GENERIC_NAME, pattern = gen.meds.pat[i], ignore.case = TRUE)
+  classes[x] <- gen.meds.labs[i]
+  
+}
+ 
+check <- as.data.frame(cbind(restrictedmeds$GENERIC_NAME, classes)) 
+y <- grep(check[,2], pattern = "FALSE", ignore.case = TRUE)
+check[y,]
+```
+
+
+### save info on other antibiotics
+
+
+```{r for github other characterize}
+oth.med.break <- meds %>%
+  filter(days.abx.to.iostart >= -28 & days.abx.to.iostart <= 28) %>%
+  filter(abxClass == "Other.Antibacterial") %>%
+  group_by(MRN) %>%
+  summarise(oth.presc.28 = glue_collapse(unique(Antibiotic), sep = ","))
+
+db.oth.med.break <- db %>%
+  filter(record_id %in% oth.med.break$MRN) %>%
+  mutate(MRN = as.numeric(record_id)) %>%
+  left_join(oth.med.break) %>%
+  select(record_id, oth.presc.28)
+```
+
+
+```{r create some functions for column assignment}
+binarize <- function(vect){
+  ifelse(sum(vect, na.rm = TRUE) >= 1, 1, 0)
+}
+
+narem <- function(vect){
+  ifelse(is.na(vect), 0, vect)
+}
+```
+
+## Adding timing information
+```{r}
+abxdaysstring <- meds %>%
+  mutate(record_id = MRN) %>%
+  filter(days.abx.to.iostart >= -180 & days.abx.to.iostart <= 180) %>%
+  select(-MRN) %>%
+  group_by(record_id) %>%
+  summarise(abxdays.to.iostart = glue_collapse(unique(days.abx.to.iostart), sep = ","))
+
+abxdaysstring$record_id <- as.character(abxdaysstring$record_id)
+
+db <- db %>%
+  left_join(abxdaysstring)
+
+db2 <- db2 %>%
+  left_join(abxdaysstring)
+```
+
+
+### Add timing info per class to alternate db
+```{r}
+abx.all.days <- meds %>%
+  mutate(record_id = MRN,
+         record_id = as.character(record_id)) %>%
+  filter(days.abx.to.iostart >= -180 & days.abx.to.iostart <= 180) %>%
+  mutate(organism.type = paste(organism.type, ".to.start", sep = ""),
+         abxClass = paste(abxClass, ".to.start", sep = ""))
+
+abx.org.days <- abx.all.days %>%
+  group_by(record_id, organism.type) %>%
+  summarise(days.to.start = glue_collapse(unique(days.abx.to.iostart), sep = ",")) %>%
+  spread(key = "organism.type", value = "days.to.start")
+
+abx.class.days <- abx.all.days %>%
+  group_by(record_id, abxClass) %>%
+  summarise(days.to.start = glue_collapse(unique(days.abx.to.iostart), sep = ",")) %>%
+  spread(key = "abxClass", value = "days.to.start") %>%
+  select(-Antifungal.to.start, -Antiviral.to.start)
+
+
+db2 <- db2 %>%
+  left_join(abx.org.days) %>%
+  left_join(abx.class.days)
+```
+
+## Adding abx classes, with window considerations
+```{r anti classes window 60 before and after,eval=FALSE}
+
+abx.60.60meds <- meds %>%
+  filter(abx.60.60 == 1)
+
+abx.60.60meds <- abx.60.60meds %>%
+  mutate(BetaLactam = ifelse(abxClass == "BetaLactam", 1, 0))%>%
+  mutate(Macrolide = ifelse(abxClass == "Macrolide", 1, 0))%>%
+  mutate(Other.Antibacterial = ifelse(Antibiotic =="Sulfamethoxazole"| Antibiotic == "Linezolid"| Antibiotic == "Daptomycin", 1, 0))%>%
+  mutate(Fluoroquinolone = ifelse(abxClass == "FQ", 1, 0))%>%
+  mutate(Tetracycline = ifelse(abxClass == "Tetracycline", 1, 0))%>%
+  mutate(Acyclovir = ifelse(Antibiotic == "Acyclovir", 1, 0)) %>%
+  mutate(Valacyclovir = ifelse(Antibiotic == "Valacyclovir", 1, 0)) %>%
+  mutate(Metronidazole = ifelse(Antibiotic == "Metronidazole",1,0)) %>%
+  mutate(Vancomycin = ifelse(Antibiotic == "Vancomycin", 1, 0)) %>%
+  mutate(Sulfamethoxazole = ifelse(Antibiotic == "Sulfamethoxazole", 1, 0)) %>%
+  mutate(Clindamycin = ifelse(Antibiotic == "Clindamycin", 1, 0)) %>%
+  mutate(Antibacterial = ifelse(organism.type == "Antibacterial", 1, 0)) %>%
+  mutate(Antifungal = ifelse(organism.type == "Antifungal", 1, 0)) %>%
+  mutate(Antiviral = ifelse(organism.type == "Antiviral", 1, 0)) %>%
+  dplyr::select(record_id, BetaLactam, Macrolide, Other.Antibacterial, Fluoroquinolone, Vancomycin, Sulfamethoxazole, Clindamycin, Metronidazole, Tetracycline, Antibiotic, Antibacterial, Antiviral, Antifungal, Acyclovir, Valacyclovir, abxClass)
+
+abxforjoin <- abx.60.60meds %>%
+  group_by(record_id) %>%
+  summarise(BetaLactam = binarize(BetaLactam),
+            Macrolide = binarize(Macrolide),
+            Fluoroquinolone = binarize(Fluoroquinolone),
+            Tetracycline = binarize(Tetracycline), 
+            Other.Antibacterial = binarize(Other.Antibacterial),
+            Vancomycin = binarize(Vancomycin),
+            Sulfamethoxazole = binarize(Sulfamethoxazole),
+            Clindamycin = binarize(Clindamycin),
+            Metronidazole = binarize(Metronidazole),
+            Antibacterial = binarize(Antibacterial),
+            Antiviral = binarize(Antiviral),
+            Antifungal = binarize(Antifungal),
+            Acyclovir = binarize(Acyclovir),
+            Valacyclovir = binarize(Valacyclovir)
+            )
+
+db <- db %>%
+  left_join(abxforjoin) %>%
+  ungroup() %>%
+  mutate(
+    BetaLactam = narem(BetaLactam),
+    Macrolide = narem(Macrolide),
+    Fluoroquinolone = narem(Fluoroquinolone),
+    Tetracycline = narem(Tetracycline), 
+    Other.Antibacterial = narem(Other.Antibacterial),
+    Vancomycin = narem(Vancomycin),
+    Sulfamethoxazole = narem(Sulfamethoxazole),
+    Clindamycin = narem(Clindamycin),
+    Metronidazole = narem(Metronidazole),
+    Antibacterial = narem(Antibacterial),
+    Antiviral = narem(Antiviral),
+    Antifungal = narem(Antifungal),
+    Acyclovir = narem(Acyclovir),
+    Valacyclovir = narem(Valacyclovir)
+  )
+```
+
+```{r atb window 60 days post, eval = FALSE}
+meds$abx.plus.60 <- ifelse(meds$days.abx.to.iostart >= -0 & meds$days.abx.to.iostart <= 60, 1, 0)
+
+abxplus.60meds <- meds %>%
+  filter(abx.plus.60 == 1) 
+
+abxplus.60Class <- unique(abxplus.60meds$abxClass)
+abxplus.60meds <- abxplus.60meds %>%
+  mutate(BetaLactamplus = ifelse(abxClass == "BetaLactam", 1, 0))%>%
+  mutate(Macrolideplus = ifelse(abxClass == "Macrolide", 1, 0))%>%
+  mutate(Other.Antibacterialplus = ifelse(Antibiotic =="Sulfamethoxazole"| Antibiotic == "Linezolid"| Antibiotic == "Daptomycin", 1, 0))%>%
+  mutate(Fluoroquinoloneplus = ifelse(abxClass == "FQ", 1, 0))%>%
+  mutate(Tetracyclineplus = ifelse(abxClass == "Tetracycline", 1, 0))%>%
+  mutate(Acyclovirplus = ifelse(Antibiotic == "Acyclovir", 1, 0)) %>%
+  mutate(Valacyclovirplus = ifelse(Antibiotic == "Valacyclovir", 1, 0)) %>%
+  mutate(Metronidazoleplus = ifelse(Antibiotic == "Metronidazole",1,0)) %>%
+  mutate(Vancomycinplus = ifelse(Antibiotic == "Vancomycin", 1, 0)) %>%
+  mutate(Sulfamethoxazoleplus = ifelse(Antibiotic == "Sulfamethoxazole", 1, 0)) %>%
+  mutate(Clindamycinplus = ifelse(Antibiotic == "Clindamycin", 1, 0)) %>%
+  mutate(Antibacterialplus = ifelse(organism.type == "Antibacterial", 1, 0)) %>%
+  mutate(Antifungalplus = ifelse(organism.type == "Antifungal", 1, 0)) %>%
+  mutate(Antiviralplus = ifelse(organism.type == "Antiviral", 1, 0)) %>%
+  dplyr::select(record_id, BetaLactamplus, Macrolideplus, Other.Antibacterialplus, Fluoroquinoloneplus, Vancomycinplus, Sulfamethoxazoleplus, Clindamycinplus, Metronidazoleplus, Tetracyclineplus, Antibacterialplus, Antiviralplus, Antifungalplus, Acyclovirplus, Valacyclovirplus, abxClass)
+
+abxplusforjoin <- abxplus.60meds %>%
+  group_by(record_id) %>%
+  summarise(BetaLactamplus = binarize(BetaLactamplus),
+            Macrolideplus = binarize(Macrolideplus),
+            Fluoroquinoloneplus = binarize(Fluoroquinoloneplus),
+            Tetracyclineplus = binarize(Tetracyclineplus), 
+            Other.Antibacterialplus = binarize(Other.Antibacterialplus),
+            Vancomycinplus = binarize(Vancomycinplus),
+            Sulfamethoxazoleplus = binarize(Sulfamethoxazoleplus),
+            Clindamycinplus = binarize(Clindamycinplus),
+            Metronidazoleplus = binarize(Metronidazoleplus),
+            Antibacterialplus = binarize(Antibacterialplus),
+            Antiviralplus = binarize(Antiviralplus),
+            Antifungalplus = binarize(Antifungalplus),
+            Acyclovirplus = binarize(Acyclovirplus),
+            Valacyclovirplus = binarize(Valacyclovirplus)
+            )
+
+db <- db %>%
+  left_join(abxplusforjoin) %>%
+  ungroup() %>%
+  mutate(BetaLactamplus = narem(BetaLactamplus),
+         Macrolideplus = narem(Macrolideplus),
+         Fluoroquinoloneplus = narem(Fluoroquinoloneplus),
+         Tetracyclineplus = narem(Tetracyclineplus), 
+         Other.Antibacterialplus = narem(Other.Antibacterialplus),
+         Vancomycinplus = narem(Vancomycinplus),
+         Sulfamethoxazoleplus = narem(Sulfamethoxazoleplus),
+         Clindamycinplus = narem(Clindamycinplus),
+         Metronidazoleplus = narem(Metronidazoleplus),
+         Antibacterialplus = narem(Antibacterialplus),
+         Antiviralplus = narem(Antiviralplus),
+         Antifungalplus = narem(Antifungalplus),
+         Acyclovirplus = narem(Acyclovirplus),
+         Valacyclovirplus = narem(Valacyclovirplus))
+
+```
+
+
+```{r abx classes 60 days before, eval = FALSE}
+abxless.60meds <- meds %>%
+  filter(abx.60 == 1) 
+
+abxless.60meds <- abxless.60meds %>%
+  mutate(BetaLactamless = ifelse(abxClass == "BetaLactam", 1, 0))%>%
+  mutate(Macrolideless = ifelse(abxClass == "Macrolide", 1, 0))%>%
+  mutate(Other.Antibacterialless = ifelse(Antibiotic =="Sulfamethoxazole"| Antibiotic == "Linezolid"| Antibiotic == "Daptomycin", 1, 0))%>%
+  mutate(Fluoroquinoloneless = ifelse(abxClass == "FQ", 1, 0))%>%
+  mutate(Tetracyclineless = ifelse(abxClass == "Tetracycline", 1, 0))%>%
+  mutate(Acyclovirless = ifelse(Antibiotic == "Acyclovir", 1, 0)) %>%
+  mutate(Valacyclovirless = ifelse(Antibiotic == "Valacyclovir", 1, 0)) %>%
+  mutate(Metronidazoleless = ifelse(Antibiotic == "Metronidazole",1,0)) %>%
+  mutate(Vancomycinless = ifelse(Antibiotic == "Vancomycin", 1, 0)) %>%
+  mutate(Sulfamethoxazoleless = ifelse(Antibiotic == "Sulfamethoxazole", 1, 0)) %>%
+  mutate(Clindamycinless = ifelse(Antibiotic == "Clindamycin", 1, 0)) %>%
+  mutate(Antibacterialless = ifelse(organism.type == "Antibacterial", 1, 0)) %>%
+  mutate(Antifungalless = ifelse(organism.type == "Antifungal", 1, 0)) %>%
+  mutate(Antiviralless = ifelse(organism.type == "Antiviral", 1, 0)) %>%
+  dplyr::select(record_id, BetaLactamless, Macrolideless, Other.Antibacterialless, Fluoroquinoloneless, Vancomycinless, Sulfamethoxazoleless, Clindamycinless, Metronidazoleless, Tetracyclineless, Antibiotic, Antibacterialless, Antiviralless, Antifungalless, Acyclovirless, Valacyclovirless, abxClass)
+
+abxlessforjoin <- abxless.60meds %>%
+  group_by(record_id) %>%
+  summarise(BetaLactamless = binarize(BetaLactamless),
+            Macrolideless = binarize(Macrolideless),
+            Fluoroquinoloneless = binarize(Fluoroquinoloneless),
+            Tetracyclineless = binarize(Tetracyclineless), 
+            Other.Antibacterialless = binarize(Other.Antibacterialless),
+            Vancomycinless = binarize(Vancomycinless),
+            Sulfamethoxazoleless = binarize(Sulfamethoxazoleless),
+            Clindamycinless = binarize(Clindamycinless),
+            Metronidazoleless = binarize(Metronidazoleless),
+            Antibacterialless = binarize(Antibacterialless),
+            Antiviralless = binarize(Antiviralless),
+            Antifungalless = binarize(Antifungalless),
+            Acyclovirless = binarize(Acyclovirless),
+            Valacyclovirless = binarize(Valacyclovirless)
+            )
+
+db <- db %>%
+  left_join(abxlessforjoin) %>%
+  ungroup() %>%
+  mutate(BetaLactamless = narem(BetaLactamless),
+            Macrolideless = narem(Macrolideless),
+            Fluoroquinoloneless = narem(Fluoroquinoloneless),
+            Tetracyclineless = narem(Tetracyclineless), 
+            Other.Antibacterialless = narem(Other.Antibacterialless),
+            Vancomycinless = narem(Vancomycinless),
+            Sulfamethoxazoleless = narem(Sulfamethoxazoleless),
+            Clindamycinless = narem(Clindamycinless),
+            Metronidazoleless = narem(Metronidazoleless),
+            Antibacterialless = narem(Antibacterialless),
+            Antiviralless = narem(Antiviralless),
+            Antifungalless = narem(Antifungalless),
+            Acyclovirless = narem(Acyclovirless),
+            Valacyclovirless = narem(Valacyclovirless))
+```
+
+
+```{r abx within 60 days administration route, eval = FALSE}
+admins <- unique(meds$ROUTE)[-1]
+admins
+
+meds.admins <- meds %>%
+  filter(abx.60.60 == 1) %>%
+  mutate(Oral = ifelse(ROUTE == "Oral", 1, 0),
+         Intravenous = ifelse(ROUTE == "Intravenous", 1, 0),
+         Otic = ifelse(ROUTE == "Otic", 1, 0),
+         Injection = ifelse(ROUTE == "Injection", 1, 0),
+         Ophthalmic = ifelse(ROUTE == "Ophthalmic", 1, 0),
+         External = ifelse(ROUTE == "Apply externally", 1, 0),
+         Unknown = ifelse(ROUTE == "Unknown", 1, 0),
+         Vaginal = ifelse(ROUTE == "Vaginal", 1, 0),
+         Intramuscular = ifelse(ROUTE == "Intramuscular", 1, 0))
+
+meds.admins <- meds.admins %>%
+  group_by(MRN) %>%
+  summarise(Oral = binarize(Oral),
+         Intravenous = binarize(Intravenous),
+         Otic = binarize(Otic),
+         Injection = binarize(Injection),
+         Ophthalmic = binarize(Ophthalmic),
+         External = binarize(External),
+         Unknown = binarize(Unknown),
+         Vaginal = binarize(Vaginal),
+         Intramuscular = binarize(Intramuscular)) %>%
+  mutate(record_id = as.character(MRN)) %>%
+  select(-MRN)
+
+db <- db %>%
+  left_join(meds.admins) %>%
+  mutate(Oral = narem(Oral),
+         Intravenous = narem(Intravenous),
+         Otic = narem(Otic),
+         Injection = narem(Injection),
+         Ophthalmic = narem(Ophthalmic),
+         External = narem(External),
+         Unknown.ATB.Route = narem(Unknown),
+         Vaginal = narem(Vaginal),
+         Intramuscular = narem(Intramuscular)) %>%
+  dplyr::select(-Unknown)
+          
+```
+
+# Steroid assignments
+
+## Calculate days until iostart and add column of all days steroids were prescribed
+
+```{r}
+iostart <- db %>%
+  select(record_id, iostart) %>%
+  mutate(iostart = as.Date(iostart, format = "%F")) %>%
+  mutate(MRN = record_id) %>%
+  select(-record_id)
+
+steroids <- steroids %>%
+  mutate(MRN = as.character(MRN)) %>%
+  left_join(iostart)
+
+steroids$iostart <- as.Date(steroids$iostart, format = "%F")
+steroids$START_DATE <- as.Date(steroids$START_DATE, formate = "%F")
+steroids$days.to.iostart <- steroids$START_DATE - steroids$iostart
+
+steroids <- steroids %>% 
+  filter(!is.na(days.to.iostart)) %>%
+  mutate(ster.30 = ifelse(days.to.iostart > -30 & days.to.iostart <= 0, 1, 0)) %>%
+  mutate(ster.30.30 = ifelse(days.to.iostart > -30 & days.to.iostart <= 30, 1, 0)) %>%
+  mutate(ster.60 = ifelse(days.to.iostart > -60 & days.to.iostart <= 0, 1, 0)) %>%
+  mutate(ster.60.60 = ifelse(days.to.iostart > -60 & days.to.iostart <= 60, 1, 0)) %>%
+  mutate(ster.180.180 = ifelse(days.to.iostart > -180 & days.to.iostart <= 180, 1, 0))
+
+daysstring <- steroids %>%
+  mutate(record_id = MRN) %>%
+  filter(days.to.iostart >= -180 & days.to.iostart <= 180) %>%
+  select(-MRN) %>%
+  group_by(record_id) %>%
+  summarise(sterdays.to.start = glue_collapse(unique(days.to.iostart), sep = ","))
+
+
+db2 <- db2 %>%
+  left_join(daysstring)
+```
+
+## Assing route by which the steroids were administered
+
+```{r create steroid application key}
+sterroute <- c("Injection", "Oral", "Apply externally", "Rectal", "Ophthalmic", "Unknown", "Otic" ) 
+
+sterclass <- c("IV", "Oral", rep("Other.route", 5))
+
+sterassign <- as.data.frame(cbind(sterroute, sterclass)) %>%
+  mutate(sterroute = as.character(sterroute),
+         sterclass = as.character(sterclass))
+```
+
+```{r}
+classes <- vector(length = length(steroids$GENERIC_NAME))
+
+for(i in 1:length(sterroute)){
+  x <- grep(x = steroids$ROUTE, pattern = sterroute[i], ignore.case = TRUE)
+  classes[x] <- sterassign[i, 2]
+  
+}
+ 
+check <- as.data.frame(cbind(steroids$ROUTE, classes)) 
+y <- grep(check[,2], pattern = "FALSE", ignore.case = TRUE)
+check[y, "classes"] <- NA
+```
+
+## Assign steroid class generic names
+```{r}
+sterforfun <- vector(length = length(steroids$GENERIC_NAME))
+sterdrugname <- sterfun$Drug.name
+
+i <- 5
+for(i in 1:length(sterdrugname)){
+  x <- grep(x = steroids$GENERIC_NAME, pattern = sterdrugname[i], ignore.case = TRUE)
+  sterforfun[x] <- as.character(sterfun[i,1])
+  
+}
+ 
+check <- as.data.frame(cbind(steroids$GENERIC_NAME, sterforfun)) 
+y <- grep(check[,2], pattern = "FALSE", ignore.case = TRUE)
+check[y,]
+```
+
+```{r, eval = FALSE}
+steroids$sterclass <- classes
+steroids$sterforfun <- sterforfun
+```
+
+### Add timing info for classes
+```{r}
+ster.class.time <- steroids %>%
+  mutate(record_id = MRN,
+         DBID = sterforfun) %>%
+  select(-MRN) %>%
+  filter(ster.180.180 == 1) %>%
+  left_join(stergenkey) %>%
+  mutate(Generic.ID = paste(Generic.ID, ".to.start", sep = "")) %>%
+  group_by(record_id, Generic.ID) %>%
+  summarise(days.to.start = glue_collapse(unique(days.to.iostart), sep = ",")) %>%
+  spread(key = "Generic.ID", value = "days.to.start")
+
+db2 <- db2 %>%
+  left_join(ster.class.time)
+```
+
+
+#Saving data
+```{r, eval=FALSE}
+
+# Create column for time of irae relevant to iostart
+# This was created as its own data frame because not every subject has iostart and date_of_irae data. Filtering to subjects with that data was required to calculate irae_time_to_start below. I found it easier to do this as its own data frame, then join it back to db2 via record_id
+irae_time <- db2 %>%
+  # Clear empty rows
+  filter(iostart != "is.na", date_of_irae != "") %>%
+  # Represent as days after iostart
+  mutate(irae_time_to_start = as.Date(date_of_irae) - as.Date(iostart)) %>%
+  # Keep calculated column and record_id so it can be joined to db2
+  select(record_id, irae_time_to_start)
+
+
+deidentdb2 <- db2 %>%
+  left_join(db.oth.med.break) %>%
+  left_join(irae_time) %>%
+  dplyr::select(-record_id, -last_name, -dob,
+                # -iostart, 
+                -contains("date")
+                )
+
+
+saveRDS(deidentdb2, "../../manuscript/data/from_processing/deidentdb_timing.RDS")
+
+```

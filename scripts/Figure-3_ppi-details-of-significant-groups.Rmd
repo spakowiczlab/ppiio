@@ -1,0 +1,745 @@
+---
+title: "Figure-2_details-of-significant-meds"
+author: "Rebecca Hoyd"
+date: "May 10, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(survival)
+library(survminer)
+library(glue)
+library(RColorBrewer)
+library(forcats)
+library(broom)
+library(ggdendro)
+library(gridExtra)
+```
+
+```{r load data}
+db <- readRDS("T:/Labs/Spakowicz/data/exoio/table_one_db.RDS")
+
+
+# May not need this
+sterkey <- read.table("C:/Users/muni11/Box/abio/manuscript/data/from_processing/steroid-dbid-key.tsv") %>%
+  select(-Drug.name)
+
+sterkey <- sterkey[!duplicated(sterkey),]
+
+```
+
+```{r}
+# abxclasses <- c("BetaLactam", "Macrolide",  "Other.Antibacterial", "Fluoroquinolone", "Tetracycline",
+#                 "Vancomycin", "Sulfamethoxazole", "Clindamycin", "Metronidazole")
+# 
+# orgtype <- c("Antibacterial", "Antiviral", "Antifungal")
+
+allcancers <- c('Other', 'Melanoma', 'Non-Small Cell Lung Cancer', 'Head and Neck Carcinoma', 'Renal Cell Carcinoma', 'Sarcoma', 'Bladder Cancer')
+```
+
+# A) Hazard Ratio over time
+
+```{r}
+check.window <- function(vect, per){
+  wind <- per[1]:per[2]
+  wind <- glue_collapse(as.character(wind), sep = ",|,")
+  wind <- paste(",", wind, ",", sep = "")
+  ifelse(grepl(pattern = wind, x = vect), 1, 0)
+}
+```
+
+```{r}
+# db <- db %>%
+#   mutate(abx.180.180 = check.window(paste(",", abxdays.to.iostart, ",", sep = ""), c(-180,180)))
+```
+
+
+# I am not sure what this is coding for an I cannot get it to run correctly--even with the original code
+## Part 1: Steroids
+
+
+
+
+
+
+*Error in `$<-.data.frame`(`*tmp*`, tmp2, value = logical(0)) : replacement has 0 rows, data has 119
+```{r, include = FALSE}
+ppifloattime <- db %>%
+  filter(!is.na(ppi_start) & ppi_start != "") %>%
+  mutate(ppidays.to.iostart = as.Date(ppi_start) - as.Date(iostart)) %>%
+  select(days, vitalstatus, ppidays.to.iostart)
+  
+
+ppi.zero.cohort <- ppifloattime %>%
+  mutate(tmp = check.window(ppidays.to.iostart, c(-180,180))) %>%
+  filter(tmp == 0) %>%
+  select(days, vitalstatus, tmp)
+
+leftanchor <-c(-180:151)
+ppiwindresults <- list()
+
+i <- 1
+ppifloattime$tmp2 <- check.window(ppifloattime$ppidays.to.start, c(leftanchor[i], leftanchor[i] + 29))
+
+for(i in 1:length(leftanchor)){
+  j <- leftanchor[i]
+  sterfloattime$tmp <- check.window(sterfloattime$sterdays.to.start, c(j, j+29))
+  
+  sterfloattime <- sterfloattime %>%
+    mutate(tmp3 = tmp2 - tmp) %>%
+    filter(tmp3 == 0 | tmp3 == -1) %>%
+    mutate(tmp2 = tmp)
+  
+  sterfloatforsurv <- sterfloattime %>%
+    filter(tmp == 1) %>%
+    bind_rows(ster.zero.cohort)
+  
+  try({
+    survtemp <- coxph(Surv(days, vitalstatus) ~ tmp, data = sterfloatforsurv)
+    sterwindresults[[i]] <- survtemp %>%
+      tidy() %>%
+      mutate(hazard.ratio = exp(estimate),
+             low.bound = exp(conf.low),
+             upper.bound = exp(conf.high),
+             windpval = p.value,
+             leftanchor = j) %>%
+      select(hazard.ratio, low.bound, upper.bound, leftanchor, windpval)
+  })
+  
+  
+}
+
+sterpvaltime <- bind_rows(sterwindresults) %>%
+  mutate(leftanchor = leftanchor + 15)
+```
+
+## Part 2: Antibiotics
+
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+abxfloattime <- db %>%
+  select(days, vitalstatus, abxdays.to.iostart) %>%
+  mutate(abx.days.to.iostart = paste(",", abxdays.to.iostart, ",", sep = ""))
+
+abx.zero.cohort <- db %>%
+  select(days, vitalstatus, abx.180.180) %>%
+  filter(abx.180.180 == 0) %>%
+  mutate(tmp = abx.180.180) %>%
+  select(days, vitalstatus, tmp)
+
+leftanchor <-c(-180:151)
+abxwindresults <- list()
+
+i <- 1
+abxfloattime$tmp2 <- check.window(abxfloattime$abxdays.to.iostart, c(leftanchor[i], leftanchor[i]+29))
+  
+for(i in 1:length(leftanchor)){
+  j <- leftanchor[i]
+  abxfloattime$tmp <- check.window(abxfloattime$abxdays.to.iostart, c(j, j+29))
+  
+  abxfloattime <- abxfloattime %>%
+    mutate(tmp3 = tmp2 -tmp) %>%
+    filter(tmp3 == 0 | tmp3 == -1) %>%
+    mutate(tmp2 = tmp)
+  
+  abxfloatforsurv <- abxfloattime %>%
+    filter(tmp == 1) %>%
+    bind_rows(abx.zero.cohort)
+  
+  try({
+  survtemp <- coxph(Surv(days, vitalstatus) ~ tmp, data = abxfloatforsurv)
+  abxwindresults[[i]] <- survtemp %>%
+    tidy() %>%
+    mutate(hazard.ratio = exp(estimate),
+           low.bound = exp(conf.low),
+           upper.bound = exp(conf.high), 
+           windpval = p.value,
+           leftanchor = j) %>%
+    select(hazard.ratio, low.bound, upper.bound, windpval, leftanchor)
+  })
+  
+}
+
+abxpvaltime <- bind_rows(abxwindresults)
+abxpvaltime$leftanchor <- abxpvaltime$leftanchor + 15
+```
+
+
+## Combine + plot results
+
+```{r}
+abxpvaltime$source <- "ABx"
+sterpvaltime$source <- "CS"
+allpvaltime <- bind_rows(abxpvaltime, sterpvaltime)
+
+ggplot(data = allpvaltime, aes(x = leftanchor, y = hazard.ratio)) +
+  geom_line(aes(color = source)) +
+  geom_ribbon(aes(ymin = low.bound, ymax = upper.bound, fill = source), alpha = 0.5) +
+  geom_hline(yintercept = 1) +
+  scale_color_manual(aesthetics = c("fill", "color"), breaks = c("ABx", "CS"), 
+                     values = c("darkred", "darkblue"), name = "Drug") +
+  labs(title = "", x = "Days relative to ICI start",y = "Hazard Ratio" ) +
+  theme_bw() + 
+  theme(axis.text = element_text(size = 12), axis.title = element_text(size = 15)) 
+```
+
+
+# B) P.value heatmaps: strongest window
+
+## Create window columns:
+```{r}
+statesofinterest <- c(abxclasses, orgtype, as.character(sterkey$Generic.ID))
+
+edges <- c(-28,28)
+
+db.heat <- db %>%
+  select(days, cancer.name, vitalstatus, one_of(paste(statesofinterest, ".to.start", sep = "")))
+
+for(s in statesofinterest){
+  db.heat[[paste(s, ".to.start", sep = "")]] <- paste(",", db.heat[[paste(s, ".to.start", sep = "")]], ",", 
+                                                      sep = "") 
+  db.heat[[s]] <- check.window(db.heat[[paste(s, ".to.start", sep = "")]], edges)
+}
+
+db.heat$Other.Steroid <- ifelse(db.heat$Betamthasone == 1|db.heat$Fludrocortisone == 1|db.heat$Prednisolone == 1,
+                                1, 0)
+```
+
+## Prepare data for the antibiotic heatmaps
+
+Loop to run all coxph() models and to save other data for the heatmap figures:
+```{r}
+statesofinterest <- c(abxclasses, orgtype)
+
+curvesbycancer <- list()
+sfits <- list()
+
+pvalbycancbac <- list()
+pvalbycancorg <- list()
+
+hrbycancbac <- list()
+hrbycancorg <- list()
+
+labcolbac <- list()
+labcolorg <- list()
+
+
+g <- as.formula(paste("Surv(days, vitalstatus) ~ ", glue_collapse(abxclasses, sep = " + "), sep = ""))
+h <- as.formula(paste("Surv(days, vitalstatus) ~ ", glue_collapse(orgtype, sep = " + "), sep = ""))
+
+for(c in allcancers){
+  
+  tmp <- subset(db.heat, db.heat$cancer.name == c)
+  
+  x <- coefficients(summary(coxph(formula = g, data = tmp)))
+  y <- coefficients(summary(coxph(formula = h, data = tmp)))
+
+    hrbycancbac[[c]] <- round(x[,2], 2)
+    labcolbac[[c]] <- ifelse(x[,2] < 1, "red", "black")
+    pvalbycancbac[[c]] <- x[,5]
+    
+    hrbycancorg[[c]] <- round(y[,2], 2)
+    labcolorg[[c]] <- ifelse(y[,2] < 1, "red", "black")
+    pvalbycancorg[[c]] <- y[,5]
+  
+}
+
+perorgcancpvals <- bind_rows(pvalbycancorg) %>%
+  t() %>%
+  as.data.frame()
+colnames(perorgcancpvals) <- names(pvalbycancorg$Other)
+
+perclasscancpvals <- bind_rows(pvalbycancbac) %>%
+  t() %>%
+  as.data.frame()
+colnames(perclasscancpvals) <- names(pvalbycancbac$Other)
+
+
+labcolbac <- bind_rows(labcolbac) %>%
+  t() %>%
+  as.data.frame()
+colnames(labcolbac) <- names(hrbycancbac$Other)
+
+labcolorg <- bind_rows(labcolorg) %>%
+  t() %>%
+  as.data.frame()
+colnames(labcolorg) <- names(hrbycancorg$Other)
+
+```
+
+Code manipulating data into long format for the creation of figures, and saving a data frame object that will be used for the heatmap.
+```{r}
+
+labcolorg <- labcolorg %>%
+  rownames_to_column(var = "cancer") %>%
+  gather(key = "AbxClass", value = "labcol", -cancer) %>%
+  mutate(labcol = ifelse(is.na(labcol), "black", labcol))
+
+labcolbac <- labcolbac %>%
+  rownames_to_column(var = "cancer") %>%
+  gather(key = "AbxClass", value = "labcol", -cancer) %>%
+  mutate(labcol = ifelse(is.na(labcol), "black", labcol))
+
+heatorg <- as.data.frame(perorgcancpvals)  %>%
+  rownames_to_column(var = "cancer") %>%
+  gather(key = "AbxClass", value = "p.value", -cancer) %>%
+  full_join(labcolorg)
+
+heatclass <- as.data.frame(perclasscancpvals)  %>%
+  rownames_to_column(var = "cancer") %>%
+  gather(key = "AbxClass", value = "p.value", -cancer) %>%
+  full_join(labcolbac)
+
+heatclass <- bind_rows(heatorg, heatclass)
+```
+
+Save data from all cancers:
+```{r}
+
+x <- coefficients(summary(coxph(formula = g, data = db.heat)))
+y <- coefficients(summary(coxph(formula = h, data = db.heat)))
+albac.hr <- c(round(x[,2], 2), round(y[,2], 2))
+albac.pval<- c(x[,5], y[,5])
+
+
+albac.dat <- as.data.frame(cbind(albac.hr, albac.pval))
+colnames(albac.dat) <- c("hazrat", "p.value")
+
+albac.dat <- albac.dat %>%
+  rownames_to_column(var = "AbxClass") %>%
+  mutate(labcol = ifelse(hazrat < 1, "red", "black"),
+         cancer = "All") %>%
+  select(cancer, AbxClass, p.value, labcol)
+```
+
+
+Save data from all meds:
+```{r}
+sfits <- list()
+db <- db %>%
+  mutate(abx.28.28 = check.window(paste(",", abxdays.to.iostart, ",", sep = ""), c(-28,28)))
+
+for(c in allcancers){
+  tmp <- db %>%
+    filter(cancer.name == c)
+  
+  sfits[[c]] <- surv_pvalue(survfit(Surv(days, vitalstatus) ~ abx.28.28, data = tmp))[1,2]
+}
+
+alcancbac.pval <- bind_rows(sfits)
+alcancbac.hr <- lapply(allcancers, function(x) { 
+  coefficients(summary(coxph(Surv(days, vitalstatus) ~ abx.28.28,
+                             data = filter(db, cancer.name == x))))[,2] 
+  })
+
+names(alcancbac.hr) <- allcancers
+
+alcancbac.pval <- bind_rows(alcancbac.pval)
+alcancbac.hr <- bind_rows(alcancbac.hr)
+
+alcancbac.dat <- as.data.frame(bind_rows(alcancbac.pval, alcancbac.hr))
+rownames(alcancbac.dat) <- c("p.value", "hazrat")
+
+alcancbac.dat <- alcancbac.dat %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "cancer") %>%
+  mutate(labcol = ifelse(hazrat < 1, "red", "black"),
+         AbxClass = "All") %>%
+  select(cancer, AbxClass, p.value, labcol)
+  
+```
+
+the all/all corner:
+```{r}
+sfit <- survfit(Surv(days, vitalstatus) ~ abx.28.28, data = db)
+
+allallbac <- as.data.frame(cbind(AbxClass = "All", cancer = "All", 
+                                 p.value = surv_pvalue(sfit)[1,2], 
+                                 hazrat = coefficients(summary(coxph(Surv(days, vitalstatus) ~ abx.28.28,
+                                                                     data = db)))[1,2])) %>%
+  mutate(p.value = as.numeric(as.character(p.value)),
+         hazrat = as.numeric(as.character(hazrat)),
+         labcol = ifelse(hazrat < 1, "red", "black")) %>%
+  select(cancer, AbxClass, p.value, labcol)
+```
+
+Adding preserved full cohort:
+```{r}
+heatclass <- bind_rows(heatclass, albac.dat, alcancbac.dat, allallbac)
+```
+
+## Prepare data for the steroid heatmaps
+
+```{r, message=FALSE, warning=FALSE}
+sterdbid <- c("Triamcinolone", "Prednisone", "Hydrocortisone", "Methylprednisone", "Dexamethosone", "Other.Steroid")
+
+dbidcurvesbycancer <- list()
+
+dbidpvalbycancer <- list()
+
+dbidhrbycanc <- list()
+
+dbidlabcol <- list()
+
+g <- as.formula(paste("Surv(days, vitalstatus) ~ ", glue_collapse(sterdbid, sep = " + "), sep = ""))
+
+for (c in allcancers) {
+  tmp <- subset(db.heat, db.heat$cancer.name == c)
+  
+  x <- coefficients(summary(coxph(formula = g, data = tmp)))
+  dbidhrbycanc[[c]] <- round(x[,2], 2)
+  dbidlabcol[[c]] <- ifelse(x[,2] < 1, "red", "black")
+  dbidpvalbycancer[[c]] <- x[,5]
+  
+}
+
+
+dbidallcancpvals <- bind_rows(dbidpvalbycancer) %>%
+  t() %>%
+  as.data.frame()
+colnames(dbidallcancpvals) <- names(dbidpvalbycancer$Other)
+
+
+dbidlabcol <- bind_rows(dbidlabcol) %>%
+  t() %>%
+  as.data.frame()
+colnames(dbidlabcol) <- names(dbidhrbycanc$Other)
+
+```
+
+
+Manipulatin
+```{r}
+
+dbidlabcol <- dbidlabcol %>%
+  rownames_to_column(var = "cancer") %>%
+  gather(key = "Steroid.ID", value = "labcol", -cancer) %>%
+  mutate(labcol = ifelse(is.na(labcol), "black", labcol))
+
+heatster <- as.data.frame(dbidallcancpvals)  %>%
+  rownames_to_column(var = "cancer") %>%
+  gather(key = "Steroid.ID", value = "p.value", -cancer) %>%
+  full_join(dbidlabcol) 
+```
+
+Save data from all cancers:
+```{r}
+forms <- list()
+for(s in sterdbid){
+  forms[[s]] <- as.formula(paste("Surv(days, vitalstatus) ~ ", s, sep = ""))
+}
+sfits <- surv_fit(forms, data = db.heat)
+alster.pval <- lapply(sfits, function (x) surv_pvalue(x)[1,2])
+names(alster.pval) <- names(forms)
+alster.hr <- lapply(forms, function(x)  coefficients(summary(coxph(formula = x, data = db.heat)))[,2])
+
+alster.pval <- bind_rows(alster.pval)
+alster.hr <- bind_rows(alster.hr)
+
+alster.dat <- as.data.frame(bind_rows(alster.pval, alster.hr))
+rownames(alster.dat) <- c("p.value", "hazrat")
+
+alster.dat <- alster.dat %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "Steroid.ID") %>%
+  mutate(labcol = ifelse(hazrat < 1, "red", "black"),
+         cancer = "All") %>%
+  select(cancer, Steroid.ID, p.value, labcol)
+  
+```
+
+
+Save data from all meds:
+```{r}
+sfits <- list()
+db <- db %>%
+  mutate(ster.28.28 = check.window(paste(",", sterdays.to.start, ",", sep = ""), c(-28,28)))
+
+for(c in allcancers){
+  tmp <- db %>%
+    filter(cancer.name == c)
+  
+  sfits[[c]] <- survfit(Surv(days, vitalstatus) ~ ster.28.28, data = tmp)
+}
+
+alcancster.pval <- lapply(sfits, function (x) surv_pvalue(x)[1,2])
+alcancster.hr <- lapply(allcancers, function(x) { 
+  coefficients(summary(coxph(Surv(days, vitalstatus) ~ ster.28.28,
+                             data = filter(db, cancer.name == x))))[,2]
+  })
+
+names(alcancster.hr) <- allcancers
+
+alcancster.pval <- bind_rows(alcancster.pval)
+alcancster.hr <- bind_rows(alcancster.hr)
+
+alcancster.dat <- as.data.frame(bind_rows(alcancster.pval, alcancster.hr))
+rownames(alcancster.dat) <- c("p.value", "hazrat")
+
+alcancster.dat <- alcancster.dat %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "cancer") %>%
+  mutate(labcol = ifelse(hazrat < 1, "red", "black"),
+         Steroid.ID = "All") %>%
+  select(cancer, Steroid.ID, p.value, labcol)
+  
+```
+
+the all/all corner:
+```{r}
+sfit <- survfit(Surv(days, vitalstatus) ~ ster.28.28, data = db)
+
+allallster <- as.data.frame(cbind(Steroid.ID = "All", cancer = "All",
+                                  p.value = surv_pvalue(sfit)[1,2], 
+                                  hazrat = coefficients(summary(coxph(Surv(days, vitalstatus) ~ ster.28.28,
+                                                                      data = db)))[1,2])) %>%
+  mutate(p.value = as.numeric(as.character(p.value)),
+         hazrat = as.numeric(as.character(hazrat)),
+         labcol = ifelse(hazrat < 1, "red", "black")) %>%
+  select(cancer, Steroid.ID, p.value, labcol)
+```
+
+Adding preserved full cohort:
+```{r}
+heatster <- bind_rows(heatster, alster.dat, alcancster.dat, allallster)
+```
+
+## Create dendrograms for the heatmaps
+
+Antibacerials:
+```{r}
+hrforclustbac <- bind_rows(hrbycancbac) %>%
+  as.data.frame()
+
+rownames(hrforclustbac) <- names(hrbycancbac$Other)
+
+hrforclustbac <- sapply(hrforclustbac, function(x) ifelse(x > 65000, 65000, x))
+hrforclustbac <- apply(hrforclustbac, 2, function(x) ifelse(is.na(x), 1, x))
+rownames(hrforclustbac) <- names(hrbycancbac$Other)
+hrforclustbac <- dist(hrforclustbac)
+
+bactree <- hclust(hrforclustbac)
+bactree <- as.dendrogram(bactree)
+bactree <- dendro_data(bactree)
+
+bacorder <- as.character(bactree$labels$label)
+
+
+dendplot <- ggdendrogram(bactree, rotate = FALSE, leaf_labels = FALSE) +
+  geom_segment(aes(x = 1, xend = 1, y = -4000, yend = 0)) +
+  geom_segment(aes(x = 2, xend = 2, y = -4000, yend = 0)) +
+  geom_segment(aes(x = 3, xend = 3, y = -4000, yend = 0)) +
+  geom_segment(aes(x = 4, xend = 4, y = -4000, yend = 0)) +
+  geom_segment(aes(x = 5, xend = 5, y = -4000, yend = 0)) +
+  geom_segment(aes(x = 6, xend = 6, y = -4000, yend = 0)) +
+  geom_segment(aes(x = 7, xend = 7, y = -4000, yend = 0)) +
+  geom_segment(aes(x = 8, xend = 8, y = -4000, yend = 0)) +
+  geom_segment(aes(x = 9, xend = 9, y = -4000, yend = 0)) +
+  theme(axis.text.y = element_blank(), axis.text.x = element_blank(),plot.margin = margin(0,0,0,0))
+
+cancclust <- bind_rows(hrbycancbac) %>%
+  t() %>%
+  as.data.frame
+
+cancclust <- sapply(cancclust, function(x) ifelse(x > 65000, 65000, x))
+cancclust <- apply(cancclust, 2, function(x) ifelse(is.na(x), 1, x))
+colnames(cancclust) <- names(hrbycancbac$Other)
+rownames(cancclust) <- names(hrbycancbac)
+
+cancclust <- dist(cancclust)
+cancclust <- hclust(cancclust)
+canctree <- dendro_data(as.dendrogram(cancclust))
+```
+
+Steroids:
+```{r}
+
+dbidforclust <- bind_rows(dbidhrbycanc) %>%
+  as.data.frame() 
+
+rownames(dbidforclust) <- names(dbidhrbycanc$Other)
+
+dbidforclust <- sapply(dbidforclust, function(x) ifelse(x > 65000, 65000, x))
+dbidforclust <- apply(dbidforclust, 2, function(x) ifelse(is.na(x), 1, x))
+
+rownames(dbidforclust) <- names(dbidhrbycanc$Other)
+
+dbidsterclust <- dist(dbidforclust)
+dbidtree <- hclust(dbidsterclust)
+dbidtree <- dendro_data(as.dendrogram(dbidtree))
+
+dbiddendplot <- ggdendrogram(dbidtree, rotate = FALSE, size = 10, labels = FALSE) +
+  theme(axis.text.y = element_blank(), axis.text.x = element_blank())
+
+dbidcancclust <- t(dbidforclust) %>%
+  dist() %>%
+  hclust()
+dbidcanctree <- dendro_data(as.dendrogram(dbidcancclust))
+```
+
+# Construct Heatmaps
+
+Build the heatmap for the antibacterials:
+```{r}
+heatplot <- heatclass %>%
+  ggplot(aes(fct_relevel(AbxClass, "All", "Antibacterial", "Antifungal", "Antiviral", bacorder), 
+             fct_relevel(cancer, "Other", "Bladder Cancer", "Head and Neck Carcinoma", "Melanoma",
+                         "Non-Small Cell Lung Cancer", "Renal Cell Carcinoma", "Sarcoma", "All"))) +
+  geom_tile(aes(fill = p.value )) +
+  geom_point(aes(shape = labcol), size = 5) +
+  scale_shape_manual(breaks = c("black", "red"), values = c("-", "+"), 
+                     labels = c("HR>1", "HR<1"), name = "Direction") +
+  labs(x = "", y = "") +
+  scale_fill_distiller(guide = "legend", breaks = c(0.000000000001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.5, 1),
+                       limits = c(0, 1), values = c(0.000000000001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.5, 1),
+                       type = "div", palette = "RdBu", direction = 1, 
+                       labels = c("<0.01", "0.01", "0.02","0.03", "0.04","0.05","0.1", "0.2", "0.5", "1")) +
+  scale_x_discrete(breaks = c("All", "Antifungal", "Antiviral", "Antibacterial", "BetaLactam", "Macrolide",
+                              "Other.Antibacterial", "Fluoroquinolone", "Tetracycline", "Vancomycin",
+                              "Sulfamethoxazole", "Clindamycin", "Metronidazole"),
+                   labels =c("All", "Antifungal", "Antiviral", "Antibacterial", "BetaLactam", "Macrolide", 
+                             "Linezolid", "Fluoroquinolone", "Tetracycline", "Vancomycin", "Sulfamethoxazole-TMP",
+                             "Clindamycin", "Metronidazole")) +
+  scale_y_discrete(breaks = c("Other", "Bladder Cancer", "Head and Neck Carcinoma", "Melanoma",
+                              "Non-Small Cell Lung Cancer", "Renal Cell Carcinoma", "Sarcoma", "All"),
+                   labels = c("Other", "Bladder Cancer", "Head and Neck\nCarcinoma", "Melanoma", 
+                              "Non-Small Cell\nLung Cancer", "Renal Cell\nCarcinoma", "Sarcoma", "All")) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
+        axis.text = element_text(size = 12), legend.position = "none", plot.margin = margin(0,0,0,0))
+
+
+```
+
+Construct heatmap for steroids:
+```{r}
+dbidheatplot <- heatster %>%
+  ggplot(aes(fct_relevel(Steroid.ID, c("All", as.character(dbidtree$labels$label))), 
+             fct_relevel(cancer, "Other", "Bladder Cancer", "Head and Neck Carcinoma", "Melanoma", 
+                         "Non-Small Cell Lung Cancer", "Renal Cell Carcinoma", "Sarcoma", "All"))) +
+  geom_tile(aes(fill = p.value)) +
+  geom_point(aes(shape = labcol), size = 5) +
+  scale_shape_manual(breaks = c("black", "red"), values = c("-", "+"), 
+                     labels = c("HR>1", "HR<1"), name = "Direction") +
+  labs(x = "", y = "") +
+  scale_fill_distiller(guide = "legend", limits = c(0, 1),
+                       breaks = c(0.00000000001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.5, 1),
+                       values = c(0.00000000001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.5, 1), 
+                       labels = c("<0.01", "0.01", "0.02","0.03", "0.04","0.05","0.1", "0.2", "0.5", "1"),
+                       type = "div", palette = "RdBu", direction = 1) +
+  scale_x_discrete(breaks = c("All", "Methylprednisone", "Prednisone", "Dexamethosone", "Hydrocortisone",
+                              "Other.Steroid", "Triamcinolone"), 
+                   labels = c("All", "Methylprednisone", "Prednisone", "Dexamethosone", "Hydrocortisone",
+                              "Other Steroid", "Triamcinolone")) +
+  scale_y_discrete(breaks = c("Other", "Bladder Cancer", "Head and Neck Carcinoma", "Melanoma",
+                              "Non-Small Cell Lung Cancer", "Renal Cell Carcinoma", "Sarcoma", "All"), 
+                   labels = c("Other", "Bladder Cancer", "Head and Neck\nCarcinoma", "Melanoma",
+                              "Non-Small Cell\nLung Cancer", "Renal Cell\nCarcinoma", "Sarcoma", "All")) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 12), 
+        axis.text.y = element_blank(), axis.ticks.y = element_blank(),
+        plot.margin = margin(0,0,0,0)) 
+
+```
+
+
+Combine heatmaps and dendrograms, display and save:
+
+```{r}
+
+test <- grid.arrange(
+  grobs = list(dendplot, heatplot),
+  widths = c(1.7,2,.06),
+  heights = c(1, 4),
+  layout_matrix = rbind(c(NA, 1, NA),
+                        c(2,2,2))
+) 
+
+```
+
+
+```{r}
+
+test2 <- grid.arrange(
+  grobs = list(dbiddendplot, dbidheatplot),
+  widths = c(.55,2,.5),
+  heights = c(1, 4),
+  layout_matrix = rbind(c(NA, 1, NA),
+                        c(2,2,2))
+) 
+
+```
+
+
+
+# Store information on hazard ratios from the antibiotics data
+
+```{r}
+hazardrats <- bind_rows(hrbycancbac) %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "cancer")
+
+colnames(hazardrats) <- c("cancer", names(hrbycancbac$Other))
+colnames(hazardrats)[4] <- 'Linezolid'
+
+hazardrats <- hazardrats %>%
+  gather(-cancer, key = "AbxClass", value = "HazardRatio") %>%
+  mutate(HazardRatio = ifelse(is.na(HazardRatio), 1, HazardRatio)) %>%
+  spread(key = AbxClass, value = HazardRatio) %>%
+  column_to_rownames(var = "cancer")
+```
+
+```{r}
+Median.HR  <- lapply(hazardrats, function(x) median(x, na.rm = TRUE))
+
+Median.HR <- bind_rows(Median.HR)
+```
+
+```{r ranks of the classes in cancers}
+rankinghrs <- t(hazardrats) %>%
+  as.data.frame()
+
+rankinghrs <- lapply(rankinghrs, function(x) as.numeric(as.factor(x)))
+
+rankinghrs <- bind_cols(rankinghrs) %>%
+  as.data.frame()
+
+rownames(rankinghrs) <- colnames(hazardrats)
+rankinghrs <- t(rankinghrs) %>%
+  as.data.frame()
+
+```
+
+```{r}
+Times.Worst <- lapply(rankinghrs, function(x) {length(subset(x, x == 1))})
+
+Times.Worst <- bind_rows(Times.Worst)
+
+Times.Worst.3 <- lapply(rankinghrs, function(x) {length(subset(x, x <= 3))})
+
+Times.Worst.3 <- bind_rows(Times.Worst.3)
+
+Average.Rank <- lapply(rankinghrs, function(x) mean(x, na.rm = TRUE))
+
+Average.Rank <- bind_rows(Average.Rank)
+
+sumaryhazardranks <- rbind(Times.Worst = Times.Worst,
+                           Times.Worst.3 = Times.Worst.3,
+                           Average.Rank = Average.Rank,
+                           Median.HR = Median.HR) %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "Antibacterial") %>%
+  arrange(Average.Rank)
+
+```
+
+```{r}
+saveRDS(sumaryhazardranks, "hazard-table.RDS")
+```
