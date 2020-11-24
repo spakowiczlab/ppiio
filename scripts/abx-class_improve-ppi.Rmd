@@ -1,7 +1,7 @@
 ---
 title: "abx_class-assign_improve"
-author: "Rebecca Hoyd"
-date: "April 15, 2019"
+author: "Rebecca Hoyd & Mitchell Muniak"
+date: "11/23/2020"
 output: html_document
 ---
 
@@ -23,19 +23,20 @@ install.load::install_load(list.of.packages)
 
 
 ```{r load data, include = FALSE}
-# Line where you load the db resulting from format and filter
-load("T:/Labs/Spakowicz/data/exoio/db-meds.RData")
-db <- read.csv("T:/Labs/Spakowicz/data/exoio/format_output.csv")
 
+source("00-paths.R")
+# Line where you load the db resulting from format and filter
+load(file.path(paths$raw,"db-meds.RData"))
+db <- read.csv(file.path(paths$raw, "format_output.csv"))
 
 # This should be in T drive
-comorb <-read_excel("T:/Labs/Spakowicz/data/exoio/CharlsonScore_Presley_08272019 acj.xlsx", sheet = 2)
+comorb <-read_excel(file.path(paths$raw,"CharlsonScore_Presley_08272019 acj.xlsx"), sheet = 2)
 # comorb.2 <-read_excel("~/controlled/CharlsonScore_Presley_07152019_Addtl.xlsx")
 #steroids <- read_excel("~/controlled/corticosteroid_study678.xlsx", sheet = 2)
 
 # This should be in T drive 
-steroids <- readRDS("T:/Labs/Spakowicz/data/exoio/steroids_validate.RDS")
-sterfun <- read.table("T:/Labs/Spakowicz/data/exoio/steroid-dbid-key.TSV") 
+steroids <- readRDS(file.path(paths$raw,"steroids_validate.RDS"))
+sterfun <- read.table(file.path(paths$raw, "steroid-dbid-key.TSV")) 
 bets <- sterfun[1,]
 sterfun[1,] <- sterfun[25,]
 sterfun[25,] <- bets
@@ -591,9 +592,8 @@ ster.class.time <- steroids %>%
 db2 <- db2 %>%
   left_join(ster.class.time)
 ```
+filter(!is.na(ppi_start) & ppi_start != "") %>%
 
-
-#Saving data
 ```{r, eval=FALSE}
 
 # Create column for time of irae relevant to iostart
@@ -605,17 +605,28 @@ irae_time <- db2 %>%
   mutate(irae_time_to_start = as.Date(date_of_irae) - as.Date(iostart)) %>%
   # Keep calculated column and record_id so it can be joined to db2
   select(record_id, irae_time_to_start)
+```
 
 
+```{r}
+ppi_iostart <- db2 %>%
+  filter(!is.na(ppi_start) & ppi_start != "") %>%
+  mutate(ppidays.to.iostart = as.Date(ppi_start) - as.Date(iostart)) %>%
+  select(ppidays.to.iostart, record_id)
+```
+
+
+```{r}
 deidentdb2 <- db2 %>%
   left_join(db.oth.med.break) %>%
   left_join(irae_time) %>%
-  dplyr::select(-record_id, -last_name, -dob,
-                # -iostart, 
-                -contains("date")
-                )
+  left_join(ppi_iostart) %>%
+  dplyr::select(-contains("_id"), -contains("date"), -contains("_stop"), -contains("_start"), -last_name, -dob, -lastcontact, -lft_onset, -typeafter, -radiation_baseline1, -bisphosphstart, -bisphosphend, -steroidsend, -steroidsstart, -iostart, cbc_next, -rash_onset)
 
+```
 
-saveRDS(deidentdb2, "../../manuscript/data/from_processing/deidentdb_timing.RDS")
+#Saving data
+```{r}
+saveRDS(deidentdb2, "../data/deidentdb_timing.RDS")
 
 ```

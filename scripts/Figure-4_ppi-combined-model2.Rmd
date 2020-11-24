@@ -19,7 +19,14 @@ library(glmnet)
 
 
 ```{r}
-db <- readRDS("C:/Users/muni11/Box/abio/manuscript/data/from_processing/deidentdb_timing.RDS")
+
+db <- readRDS("../data/deidentdb_timing.RDS") 
+
+# purge github cache
+# Remove dates 
+# List out ppi columns in the above data frame
+# Move processing to abx_class_improve
+# Find pdf that has column des
 
 ```
 
@@ -32,27 +39,32 @@ check.window <- function(vect, per){
 }
 
 db <- db %>%
-  filter(!is.na(ppi_start) & ppi_start != "") %>%
-  mutate(ppidays.to.iostart = as.Date(ppi_start) - as.Date(iostart),
-         ppidays.to.iostart = paste(",", ppidays.to.iostart, ",", sep = ""),
+  mutate(ppidays.to.iostart = paste(",", ppidays.to.iostart, ",", sep = ""),
          abxdays.to.iostart = paste(",", abxdays.to.iostart, ",", sep = ""),
          sterdays.to.start = paste(",", sterdays.to.start, ",", sep = ""),
-         ppi.365.365 = check.window(ppidays.to.iostart, c(-90,90)),
+         ppi.90.90 = check.window(ppidays.to.iostart, c(-90,90)),
          abx.28.28 = check.window(abxdays.to.iostart, c(-28,28)),
          steroid.28.28 = check.window(sterdays.to.start, c(-28,28)))
 ```
 
 # A) Survival curves
 All meds
++Write formula
 ```{r}
-sfit_all <- survfit(Surv(days, vitalstatus) ~ abx.28.28 + steroid.28.28 + ppi.365.365, data = db)
+sfit_all <- survfit(Surv(days, vitalstatus) ~ abx.28.28 + steroid.28.28 + ppi.90.90, data = db)
+```
 
-comb_curv_all <- ggsurvplot(fit = sfit, conf.int = FALSE, risk.table = TRUE, tables.height = 0.45, pval = TRUE, ylab = "", 
+Create survival curve 
+```{r}
+
+comb_curv_all <- ggsurvplot(fit = sfit_all, conf.int = FALSE, risk.table = TRUE, tables.height = 0.45, pval = TRUE, ylab = "", 
                         legend = "none", legend.title = "", 
-                        legend.labs = c("ABx, CS, PPI=0", "ABx, CS=0; PPI=1", 
-                                        "ABx, PPI=0;CS=1", "ABx=0; CS, PPI = 1", "ABx=1; CS, PPI=0", "ABx, PPI=1; CS=0",
+                        legend.labs = c("ABx, CS, PPI=0", "ABx, CS=0; PPI=1",
+                                        "ABx, PPI=0;CS=1", "ABx=0; CS, PPI = 1",
+                                        "ABx=1; CS, PPI=0", "ABx, PPI=1; CS=0",
                                         "ABx, CS=1; PPI=0", "ABx, CS, PPI=1"),
-                        font.legend = c(6), fontsize = 4, xlab = "Days", pval.coord = c(0,0.08), 
+                        font.legend = c(6), fontsize = 4, xlab = "Days", pval.coord =
+                          c(0,0.08), 
                         palette = "Dark2")
 
 comb_curv_all
@@ -62,20 +74,21 @@ comb_curv_all
 comb_curv_all.leg <- ggsurvplot(fit = sfit_all, conf.int = FALSE, risk.table = TRUE, tables.height = 0.45, pval = TRUE,
                             legend = "right", legend.title = "", 
                             legend.labs = c("ABx, CS, PPI=0", "ABx, CS=0; PPI=1", 
-                                        "ABx, PPI=0;CS=1", "ABx=0; CS, PPI = 1", "ABx=1; CS, PPI=0", "ABx, PPI=1; CS=0",
+                                        "ABx, PPI=0;CS=1", "ABx=0; CS, PPI = 1",
+                                        "ABx=1; CS, PPI=0", "ABx, PPI=1; CS=0",
                                         "ABx, CS=1; PPI=0", "ABx, CS, PPI=1"), 
                             font.legend = c(8), fontsize = 4, xlab = "Days",
                             pval.coord = c(0,0.08), palette = "Dark2")
 
 comb_curv_all.leg
 ```
-PPIs
+PPIs only
 ```{r}
-sfit_ppi <- survfit(Surv(days, vitalstatus) ~ ppi.365.365, data = db)
+sfit_ppi <- survfit(Surv(days, vitalstatus) ~ ppi.90.90, data = db)
 
 comb_curv_ppi <- ggsurvplot(fit = sfit_ppi, conf.int = FALSE, risk.table = TRUE, tables.height = 0.28, pval = TRUE, ylab = "", 
                             legend = "none", legend.title = "", 
-                            legend.labs = c("No PPI +/- 365 Days", "Yes PPI +/- 365 Days"),
+                            legend.labs = c("No PPI -90 Days", "Yes PPI -90 Days"),
                             font.legend = c(6), fontsize = 4, xlab = "Days", pval.coord = c(0,0.08), 
                             palette = "Dark2")
 
@@ -85,7 +98,7 @@ comb_curv_ppi
 ```{r}
 comb_curv_ppi.leg <- ggsurvplot(fit = sfit_ppi, conf.int = FALSE, risk.table = TRUE,  tables.height = 0.30, pval = TRUE,
                             legend = "right", legend.title = "", 
-                            legend.labs = c("No PPI +/- 365 Days", "Yes PPI +/- 365 Days"), 
+                            legend.labs = c("No PPI -90 Days", "Yes PPI -90 Days"), 
                             font.legend = c(8), fontsize = 4, xlab = "Days",
                             pval.coord = c(0,0.08), palette = "Dark2")
 
@@ -98,7 +111,7 @@ comb_curv_ppi.leg
 db <- db %>%
   mutate(ABx = abx.28.28,
          CS = steroid.28.28,
-         PPI = ppi.365.365,
+         PPI = ppi.90.90,
          ECOG = ecog,
          CCI = ifelse(comorb.score <= 1, 0, 1),
          BMI = bmi.calc,
@@ -109,6 +122,7 @@ db <- db %>%
 cph <- coxph(Surv(days, vitalstatus) ~ ABx + CS + PPI + ECOG + CCI + `Stage IV` + BMI + Sex + Age, data = db)
 
 ggforest(cph) 
+
 ```
 
 
@@ -126,22 +140,23 @@ canc.percentile.res <- list()
 box.res <- list()
 canc.box.res <- list()
 
-
 for(c in allcancers){
   tmp <- db %>%
-    filter(!is.na(ECOG) & !is.na(BMI) & !is.na(`Stage IV`) & !is.na(Age)) %>%
+    filter(!is.na(ECOG) & !is.na(BMI) & !is.na(`Stage IV`) & !is.na(Age) & 
+             !is.na(CCI)) %>%
     filter(cancer.name == c)
   
   x <- tmp %>%
     mutate(Male = ifelse(Sex == "Male", 1, 0)) %>%
-    select(ABx, CS, PPI, ECOG, CCI, BMI, Age, `Stage IV`, Male) %>%
+    select(PPI, ABx, CS, ECOG, CCI, BMI, Age, `Stage IV`, Male) %>%
     as.matrix()
   
   set.seed(112358)
   fit <- glmnet(x, Surv(tmp$days, tmp$vitalstatus), family = "cox", maxit = 1000)
   for(i in 1:1000){
     try({
-    cv.fit <- cv.glmnet(x, y = Surv(tmp$days, tmp$vitalstatus), family="cox", maxit = 1000)
+    cv.fit <- cv.glmnet(x, y = Surv(tmp$days, tmp$vitalstatus), family="cox", maxit =
+                          1000)
     
     Coefficients <-  coef(fit, s = cv.fit$lambda.min)
     Active.Index <- which(Coefficients != 0)
@@ -171,6 +186,7 @@ lassores$covcount <- as.factor(lassores$covcount)
 
 # saveRDS(lassores, "fig4_percentile-lasso.RDS")
 # saveRDS(box.res, "fig4-sup_percent-appearance-and-hr_boxplots")
+
 ```
 
 ```{r}
