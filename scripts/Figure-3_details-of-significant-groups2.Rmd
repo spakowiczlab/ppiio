@@ -19,8 +19,12 @@ library(ggdendro)
 library(gridExtra)
 ```
 
+# Load processed data excel file
 ```{r load data}
-db <- readRDS("C:/Users/muni11/Box/abio/manuscript/data/from_processing/deidentdb_timing.RDS")
+# Select source
+source("00-paths.R")
+# Load in data frame
+db <- readRDS(file.path(paths$ppiio_derived, "deidentdb_timing.RDS"))
 
 sterkey <- read.table("C:/Users/muni11/Box/abio/manuscript/data/from_processing/steroid-dbid-key.tsv") %>%
   select(-Drug.name)
@@ -72,7 +76,9 @@ i <- 1
 sterfloattime$tmp2 <- check.window(sterfloattime$sterdays.to.start, c(leftanchor[i], leftanchor[i] + 29))
 
 for(i in 1:length(leftanchor)){
-  j <- leftanchor[i]
+  
+  
+  j <- leftanchor[5]
   sterfloattime$tmp <- check.window(sterfloattime$sterdays.to.start, c(j, j+29))
   
   sterfloattime <- sterfloattime %>%
@@ -107,28 +113,6 @@ sterpvaltime <- bind_rows(sterwindresults) %>%
 
 
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ## Part 2: Antibiotics
 

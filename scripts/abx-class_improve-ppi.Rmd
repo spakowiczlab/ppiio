@@ -26,17 +26,17 @@ install.load::install_load(list.of.packages)
 
 source("00-paths.R")
 # Line where you load the db resulting from format and filter
-load(file.path(paths$raw,"db-meds.RData"))
-db <- read.csv(file.path(paths$raw, "format_output.csv"))
+load(file.path(paths$exoio_raw,"db-meds.RData"))
+db <- read.csv(file.path(paths$exoio_raw, "format_output.csv"))
 
 # This should be in T drive
-comorb <-read_excel(file.path(paths$raw,"CharlsonScore_Presley_08272019 acj.xlsx"), sheet = 2)
+comorb <-read_excel(file.path(paths$exoio_raw,"CharlsonScore_Presley_08272019 acj.xlsx"), sheet = 2)
 # comorb.2 <-read_excel("~/controlled/CharlsonScore_Presley_07152019_Addtl.xlsx")
 #steroids <- read_excel("~/controlled/corticosteroid_study678.xlsx", sheet = 2)
 
 # This should be in T drive 
-steroids <- readRDS(file.path(paths$raw,"steroids_validate.RDS"))
-sterfun <- read.table(file.path(paths$raw, "steroid-dbid-key.TSV")) 
+steroids <- readRDS(file.path(paths$exoio_raw,"steroids_validate.RDS"))
+sterfun <- read.table(file.path(paths$exoio_raw, "steroid-dbid-key.TSV")) 
 bets <- sterfun[1,]
 sterfun[1,] <- sterfun[25,]
 sterfun[25,] <- bets
@@ -594,7 +594,7 @@ db2 <- db2 %>%
 ```
 filter(!is.na(ppi_start) & ppi_start != "") %>%
 
-```{r, eval=FALSE}
+```{r}
 
 # Create column for time of irae relevant to iostart
 # This was created as its own data frame because not every subject has iostart and date_of_irae data. Filtering to subjects with that data was required to calculate irae_time_to_start below. I found it easier to do this as its own data frame, then join it back to db2 via record_id
@@ -620,13 +620,18 @@ ppi_iostart <- db2 %>%
 deidentdb2 <- db2 %>%
   left_join(db.oth.med.break) %>%
   left_join(irae_time) %>%
-  left_join(ppi_iostart) %>%
-  dplyr::select(-contains("_id"), -contains("date"), -contains("_stop"), -contains("_start"), -last_name, -dob, -lastcontact, -lft_onset, -typeafter, -radiation_baseline1, -bisphosphstart, -bisphosphend, -steroidsend, -steroidsstart, -iostart, cbc_next, -rash_onset)
+  left_join(ppi_iostart) 
+
+# %>%
+#   # I need to remove this chunk and wipe from github. 
+#   dplyr::select(-contains("_id"), -contains("date"), -contains("_stop"), -contains("_start"), -last_name, -dob, -lastcontact, -lft_onset, -typeafter, -radiation_baseline1, -bisphosphstart, -bisphosphend, -steroidsend, -steroidsstart, -iostart, -cbc_next, -rash_onset)
 
 ```
 
 #Saving data
 ```{r}
-saveRDS(deidentdb2, "../data/deidentdb_timing.RDS")
+# I can save this to the t drive
+
+saveRDS(deidentdb2, file.path(paths$ppiio_derived, "deidentdb_timing.RDS"))
 
 ```

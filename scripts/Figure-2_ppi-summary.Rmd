@@ -17,84 +17,105 @@ library(forcats)
 library(UpSetR)
 ```
 
+# Load processed data excel file
+
 ```{r load data}
-
-# I need to learn the new method of creating a file pathway
-db <- readRDS("C:/Users/muni11/Box/abio/manuscript/data/from_processing/deidentdb_timing.RDS")
-
-
-# I selected for ppi columns to take a look at ppi (initial ppi use) and ppi_2 (second use)
-# One patient had a "0" for ppi, but a "1" for ppi_2. This infers that they did not have an initial dose, but somehow had a follow-up dose. This makes no sense and I realize that I either do not understand these columns or that this is an entry error
-db2 <- db %>%
-  select(contains("ppi"))
-db3 <- db2 %>%
-  filter(ppi_2 == 1)
+# Select source
+source("00-paths.R")
+# Load in data frame
+db <- readRDS(file.path(paths$ppiio_derived, "deidentdb_timing.RDS"))
 ```
 
-# This is left over from the original code that focused on antibiotics and cs. I am not sure if it should remain
+# Prepare data frame for analysis
+
 ```{r}
+# Below, 'check.window' to check if a number from a column falls within a certain range. Specifically, we are using it to see if PPI use occurred within 90 days of immunotherapy (IO). 
+# It is worth noting that this chunk was originally used for corticosteroids and antibiotics, which have much more data. As a result, sterdays.to.start and abxdays.to.iostart have multiple numbers listed in each row, which were separated by commas. In contrast, ppidays.to.iostart has just one number. To work with 'check.window', the ppidays.to.iostart value in each column still needs to be bordered by commas.
 check.window <- function(vect, per){
   wind <- per[1]:per[2]
   wind <- glue_collapse(as.character(wind), sep = ",|,")
   wind <- paste(",", wind, ",", sep = "")
   ifelse(grepl(pattern = wind, x = vect), 1, 0)
 }
+```
 
+```{r}
 db <- db %>%
-  mutate(abxdays.to.iostart = paste(",", abxdays.to.iostart, ",", sep = ""),
-         sterdays.to.start = paste(",", sterdays.to.start, ",", sep = ""),
-         abx.28.28 = check.window(abxdays.to.iostart, c(-28,28)),
-         steroid.28.28 = check.window(sterdays.to.start, c(-28,28)))
+  # Add commas to work with 'check.window'
+  mutate(ppidays.to.iostart = paste(",", ppidays.to.iostart, ",", sep = ""),
+         # Run 'check.window' to create a binary column telling us if ppi use fell within 90 days of IO
+         ppi.90.90 = check.window(ppidays.to.iostart, c(-90,90)))
 ```
 
-
-```{r define interesting columns}
-
-meds_iostart <- c("ppi"
-                  # , "statin", "steroid.28.28", "abx.28.28"
-                  )
-
-allcancers <- c('Other', 'Melanoma', 'Non-Small Cell Lung Cancer', 'Head and Neck Carcinoma', 'Renal Cell Carcinoma', 'Sarcoma', 'Bladder Cancer')
+```{r}
+# Create list for target medications
+meds_iostart <- c("ppi.90.90")
 ```
 
-# A+B) Survival curves of each medication at iostart
+```{r}
+# Create list for target cancers
+allcancers <- c('Other', 'melanoma', 'non-small cell lung cancer', 'head and neck carcinoma', 'renal cell carcinoma', 'Sarcoma', 'bladder cancer')
+
+#  "Other", "bladder cancer", "melanoma"                   "non-small cell lung cancer"
+#  [5] "small cell lung cancer"     "head and neck carcinoma"    "renal cell carcinoma"       "Hodgkin lymphoma"          
+#  [9] "colon cancer"               "Prostate"                   "pancreatic cancer"          "Sarcoma"                   
+# [13] "merkel cell carcinoma"      "breast cancer"
+```
+
+# A+B) Survival curves of PPIs at iostart
 
 ```{r create survival plots}
+# Set survival plot formula for 'ppi.90.90'
 forms <- list()
 for(var in meds_iostart){
   forms[[var]] <- as.formula(paste("Surv(days, vitalstatus) ~ ", var, sep = ""))
 }
+```
 
+```{r}
+# pair formula with data frame
 sfits <- surv_fit(formula = forms, data = db)
+# Set name 
 names(sfits) <- meds_iostart
+```
 
+```{r}
+# Set values and formatting for survival curve
 almeds.plots <- ggsurvplot(sfits, pval = TRUE, conf.int = FALSE, 
-                           risk.table = TRUE, tables.height = 0.29, title = "", legend.title = "", 
-                           legend.labs = list(c("Not prescribed", "Prescribed")), 
+                           risk.table = TRUE, tables.height = 0.29, 
+                           title = "PPI Survival (use up to 90 days prior to IO)",
+                           legend.title = "", legend.labs = list(c("Not prescribed", "Prescribed")), 
                            ylab = "", xlab = "Days", palette = c("slateblue2", "lightsalmon2"), 
                            fontsize = 3, font.legend = list(size = 12))
 ```
 
 ```{r}
-# almeds.plots[["abx.28.28"]]
-# almeds.plots[["steroid.28.28"]]
-almeds.plots[["ppi"]]
+# Plot curve
+almeds.plots[["ppi.90.90"]]
 ```
 
 
 # C) Heatmap of values when split by cancer
 
 ```{r retain full cohort info for heatmap}
+# Grab p-value from 'sfits' 
 almeds.pval <- lapply(sfits, function (x) surv_pvalue(x)[1,2])
 names(almeds.pval) <- names(sfits)
+# Grab hazard ratio from 'forms'
 almeds.hr <- lapply(forms, function(x)  coefficients(summary(coxph(formula = x, data = db)))[,2])
-
+```
+```{r}
+# Bind p-value and hazard ratio values into data frame
 almeds.pval <- bind_rows(almeds.pval)
 almeds.hr <- bind_rows(almeds.hr)
-
 almeds.dat <- as.data.frame(bind_rows(almeds.pval, almeds.hr))
+```
+```{r}
+# Add names to data frame rows
 rownames(almeds.dat) <- c("p.value", "hazrat")
-
+```
+```{r}
+# Rearrange data frame
 almeds.dat <- almeds.dat %>%
   t() %>%
   as.data.frame() %>%
@@ -105,6 +126,8 @@ almeds.dat <- almeds.dat %>%
 ```
 
 ```{r, message=FALSE, warning=FALSE}
+
+# Create lists for nested loop/for loop output
 curvesbycancer <- list()
 sfits <- list()
 
@@ -117,32 +140,26 @@ hazrat <- list()
 labcol <- list()
 labs <- list()
 
-
 canccox <- list()
 coxmods <- list()
 
+# For loop/nested loop to calculate values for all cancer types and medications (though in this version, the only medication we run are PPIs)
 for(c in allcancers){
-  
   tmp <- subset(db, db$cancer.name == c)
-  
   for(s in meds_iostart){
-    
     f <- as.formula(paste("Surv(days, vitalstatus) ~ ", s, sep = ""))
-    
     try ({
-
       sfits[[s]] <- surv_fit(formula = f, data = tmp)
       pvals[[s]] <- surv_pvalue(sfits[[s]])[1,2]
-      
       x <- coefficients(summary(coxph(formula = f, data = tmp)))[,2]
       labs[[s]] <- ifelse(x < 1, "red", "black")
-      
       coxmods[[s]] <- coxph(f, tmp) %>%
         broom::tidy() %>%
         mutate(cancer = c,
                estimate = exp(estimate),
-               conf.low = exp(conf.low),
-               conf.high = exp(conf.high))
+               # conf.low = exp(conf.low),
+               # conf.high = exp(conf.high)
+               )
       
     })
   }
@@ -158,33 +175,44 @@ for(c in allcancers){
   coxmods <- list()
 }
 
-
 allcancpvals <- bind_rows(pvalbycancer)
-rownames(allcancpvals) <- names(pvalbycancer[c(1,6)])
-
+rownames(allcancpvals) <- names(pvalbycancer)
 
 labcol <- bind_rows(labcol) 
-rownames(labcol) <- names(pvalbycancer[c(1,6)])
+rownames(labcol) <- names(pvalbycancer)
+
+
+```
+
+
+```{r}
+# Add detail to data frame
+labcol <- labcol %>%
+  # Create cancer column
+  rownames_to_column(var = "cancer") %>%
+  # Set columns
+  gather(key = "meds", value = "labcol", -cancer) %>%
+  mutate(labcol = ifelse(is.na(labcol), "black", labcol))
 ```
 
 ```{r}
-labcol <- labcol %>%
-  rownames_to_column(var = "cancer") %>%
-  gather(key = "meds", value = "labcol", -cancer) %>%
-  mutate(labcol = ifelse(is.na(labcol), "black", labcol))
-
-
+# Create data frame for heat plot
 heat.data <- as.data.frame(allcancpvals)  %>%
+  # Create cancer column
   rownames_to_column(var = "cancer") %>%
+  # Set columns
   gather(key = "meds", value = "p.value", -cancer) %>%
+  # Join to add color labeling
   full_join(labcol)
 ```
 
 ```{r}
+# Add data from all cancers combined to 'heat.data' data frame
 heat.data <- bind_rows(almeds.dat, heat.data)
 ```
 
 ```{r}
+# Set heat plot formatting
 heat.plot <- heat.data %>%
   ggplot(aes(meds, fct_relevel(cancer, "Other", "Sarcoma", "All"))) +
   geom_tile(aes(fill = p.value)) +
@@ -202,43 +230,61 @@ heat.plot <- heat.data %>%
                    labels = c("PPI")) +
   scale_y_discrete(breaks = c("Other", "Sarcoma", "All"), 
                    labels = c("Other","Sarcoma", "All"))
-
-heat.plot
-
 ```
 
-## Table of ABx hazard ratios
 ```{r}
-all.hr <- coxph(Surv(days, vitalstatus) ~ ppi, db) %>%
+# Plot heat plot
+heat.plot
+```
+
+# D) Table of PPIs hazard ratios
+
+```{r}
+# Calculate values for table
+ppi.hr <- coxph(Surv(days, vitalstatus) ~ ppi.90.90, db) %>%
         broom::tidy() %>%
         mutate(cancer = "All cancers",
                estimate = exp(estimate),
                # conf.low = exp(conf.low),
                # conf.high = exp(conf.high)
                )
+```
 
-bind_rows(bind_rows(canccox), all.hr) %>%
-  filter(term == "ppi") %>%
+```{r}
+# Bind rows
+bind_rows(bind_rows(canccox), ppi.hr) %>%
+  filter(term == "ppi.90.90") %>%
+  # Select columns
   select(cancer, estimate, p.value, std.error) %>%
   knitr::kable()
 ```
 
-# Table of ABx sample sizes
+# E) Table of PPIs sample sizes
 
 ```{r}
-all.ns <- db %>%
-  group_by(ppi) %>%
+# Data frame for ppi use vs no ppi within 90 days before IO (for all cancers)
+ppi.ns <- db %>%
+  group_by(ppi.90.90) %>%
+  # Sum patients based on ppi use 
   tally() %>%
-  mutate(cancer.name = "All cancers", 
-         ppi = ifelse(ppi == 0, "No.ppi", "ppi")) %>%
-  spread(key = ppi, value = n)
+  mutate(cancer.name = "All cancers"
+         # , name groups by ppi use
+         # ppi.90.90 = ifelse(ppi.90.90 == 0, "No.ppi", "ppi")
+         ) %>%
+  spread(key = ppi.90.90, value = n)
+```
 
+```{r}
+# Repeat above, but group  by cancer type
 split.cancer.ns <- db %>%
-  group_by(cancer.name, ppi) %>%
+  group_by(cancer.name, ppi.90.90) %>%
   tally() %>%
-  mutate(ppi = ifelse(ppi == 0, "No.ppi", "ppi")) %>%
-  spread(key = ppi, value = n)
+  # mutate(ppi.90.90 = ifelse(ppi.90.90 == 0, "No.ppi", "ppi")) %>%
+  spread(key = ppi.90.90, value = n)
+```
 
-bind_rows(all.ns, split.cancer.ns) %>%
+```{r}
+# View table
+bind_rows(ppi.ns, split.cancer.ns) %>%
   knitr::kable()
 ```

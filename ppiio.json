@@ -1,6 +1,7 @@
 {
   "paths" : {
-      "raw"     : "T:/Labs/Spakowicz/data/exoio",
-      "derived"   : "T:/Labs/Spakowicz/data/exoio"
+      "exoio_raw"     : "T:/Labs/Spakowicz/data/exoio",
+      "exoio_derived"   : "T:/Labs/Spakowicz/data/exoio",
+      "ppiio_derived"   : "T:/Labs/Spakowicz/projects/ppiio/data"
   }
-}
+}	

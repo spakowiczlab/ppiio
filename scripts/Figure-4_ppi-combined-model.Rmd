@@ -51,18 +51,18 @@ db <- db %>%
 All meds
 +Write formula
 ```{r}
-sfit_all <- survfit(Surv(days, vitalstatus) ~ abx.28.28 + steroid.28.28 + ppi.90.90, data = db)
+ggforest(coxph(Surv(days, vitalstatus) ~ abx.28.28 + steroid.28.28 + ppi.90.90, data = db))
 ```
 
 Create survival curve 
 ```{r}
 
-comb_curv_all <- ggsurvplot(fit = sfit_all, conf.int = FALSE, risk.table = TRUE, tables.height = 0.45, pval = TRUE, ylab = "", 
+comb_curv_all <- ggsurvplot(fit = sfit_all, conf.int = FALSE, risk.table = TRUE, tables.height = 0.35, pval = TRUE, ylab = "", 
                         legend = "none", legend.title = "", 
-                        legend.labs = c("ABx, CS, PPI=0", "ABx, CS=0; PPI=1",
-                                        "ABx, PPI=0;CS=1", "ABx=0; CS, PPI = 1",
-                                        "ABx=1; CS, PPI=0", "ABx, PPI=1; CS=0",
-                                        "ABx, CS=1; PPI=0", "ABx, CS, PPI=1"),
+                        # legend.labs = c("ABx, CS, PPI=0", "ABx, CS=0; PPI=1",
+                        #                 "ABx, PPI=0;CS=1",
+                        #                 "ABx=1; CS, PPI=0",
+                        #                 "ABx, CS=1; PPI=0"),
                         font.legend = c(6), fontsize = 4, xlab = "Days", pval.coord =
                           c(0,0.08), 
                         palette = "Dark2")
@@ -71,12 +71,12 @@ comb_curv_all
 ```
 
 ```{r}
-comb_curv_all.leg <- ggsurvplot(fit = sfit_all, conf.int = FALSE, risk.table = TRUE, tables.height = 0.45, pval = TRUE,
+comb_curv_all.leg <- ggsurvplot(fit = sfit_all, conf.int = FALSE, risk.table = TRUE, tables.height = 0.35, pval = TRUE,
                             legend = "right", legend.title = "", 
-                            legend.labs = c("ABx, CS, PPI=0", "ABx, CS=0; PPI=1", 
-                                        "ABx, PPI=0;CS=1", "ABx=0; CS, PPI = 1",
-                                        "ABx=1; CS, PPI=0", "ABx, PPI=1; CS=0",
-                                        "ABx, CS=1; PPI=0", "ABx, CS, PPI=1"), 
+                            # legend.labs = c("ABx, CS, PPI=0", "ABx, CS=0; PPI=1", 
+                            #             "ABx, PPI=0;CS=1", "ABx=0; CS, PPI = 1",
+                            #             "ABx=1; CS, PPI=0", "ABx, PPI=1; CS=0",
+                            #             "ABx, CS=1; PPI=0", "ABx, CS, PPI=1"), 
                             font.legend = c(8), fontsize = 4, xlab = "Days",
                             pval.coord = c(0,0.08), palette = "Dark2")
 
@@ -111,9 +111,9 @@ comb_curv_ppi.leg
 
 # Add as.factor
 db <- db %>%
-  mutate(ABx = abx.28.28,
-         CS = steroid.28.28,
-         PPI = ppi.90.90,
+  mutate(ABx = as.factor(abx.28.28),
+         CS = as.factor(steroid.28.28),
+         PPI = as.factor(ppi.90.90),
          ECOG = ecog,
          CCI = ifelse(comorb.score <= 1, 0, 1),
          BMI = bmi.calc,
@@ -132,9 +132,6 @@ ggforest(cph)
 
 Please try to avoid unnecessarily rerunning the followingcode, it take ~20 minutes to complete this loop.
 ```{r perform percentile lasso takes a long time, eval = F}
-# allcancers <- c('Other', 'Melanoma', 'Non-Small Cell Lung Cancer', 'Head and Neck Carcinoma', 'Renal Cell Carcinoma', 'Sarcoma', 'Bladder Cancer')
-
-
 
 allcancerspre <- db %>%
   filter(!is.na(ECOG) & !is.na(BMI) & !is.na(`Stage IV`) & !is.na(Age) & 
@@ -150,9 +147,6 @@ canc.percentile.res <- list()
 box.res <- list()
 canc.box.res <- list()
 
-
-
-# c <- "melanoma"
 
 for(c in allcancers){
   print(c)
@@ -199,14 +193,14 @@ lassores <- bind_rows(all.percentile.res)
 lassores$lambdahat <- as.numeric(lassores$lambdahat)
 lassores$covcount <- as.factor(lassores$covcount) 
 
-# saveRDS(lassores, "fig4_percentile-lasso.RDS")
-# saveRDS(box.res, "fig4-sup_percent-appearance-and-hr_boxplots")
+saveRDS(lassores, "fig4_percentile-lasso-ppi.RDS")
+saveRDS(box.res, "fig4-sup_percent-appearance-and-hr_boxplots-ppi")
 
 ```
 
 ```{r}
-# lassores <- readRDS("fig4_percentile-lasso.RDS")
-# box.res <- readRDS("fig4-sup_percent-appearance-and-hr_boxplots.RDS")
+lassores <- readRDS("fig4_percentile-lasso.RDS")
+box.res <- readRDS("fig4-sup_percent-appearance-and-hr_boxplots.RDS")
 ```
 
 ```{r}
