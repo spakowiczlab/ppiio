@@ -1,0 +1,295 @@
+---
+title: "Untitled"
+author: "Mitchell Muniak"
+date: "1/8/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+library(reshape)
+
+```
+
+
+```{r}
+# source("00-paths.R")
+
+# Copy into ppiio folder (create this as well as a readme; create under projects and make a data folder) in t/labs/spak/data
+# Use the paths file (which I should go back and change to only include ppi)
+  # Call phi raw and phi derived (folder to paths)
+  # Also de-identified 
+
+db_ppi <- read_xlsx("T:/Labs/Spakowicz/projects/throm/data/PLATELET_Variable_update.xlsx", 
+             sheet = 2,
+             skip = 1)
+
+
+db_full_phi <- read_csv("T:/Labs/Spakowicz/data/exoio/format_output.csv")
+
+```
+
+```{r}
+iostart_dates <- db_full_phi %>%
+  select(record_id, iostart, iostopdate, cancer.name, ppi 
+         # Check if these are present in nas for iostart
+         # io_2_start, io_2_stop, io_3_start, io_3_stop
+         ) %>%
+  dplyr::rename(ppi.marium = ppi, MRN = record_id) %>%
+  filter(!is.na(iostart))
+
+```
+
+```{r}
+
+db_ppi_2 <- db_ppi %>%
+filter(grepl(
+  "PANTOPRAZOLE|OMEPRAZOLE|LANSOPRAZOLE|DEXLANSOPRAZOLE|RABEPRAZOLE|ESOMEPRAZOLE|prilosec|yosprala|prevacid|dexilent|aciphex|protonix|nexium|vimovo|zegerid", 
+             GENERIC_NAME, ignore.case=TRUE)) %>%
+  select(-STRENGTH, -ROUTE, -HV_DISCRETE_DOSE, -MED_DIS_DISP_QTY, -MED_DESCRIPTION) %>%
+  mutate(ORDERING_DATE = as.Date(ORDERING_DATE),
+         START_DATE = as.Date(START_DATE),
+         END_DATE = as.Date(END_DATE))
+
+
+# mutate(name_lower = tolower(GENERIC_NAME))
+```
+
+
+```{r}
+# [Add] Fraction of patients with ppi use during io
+
+db_ppi_dates <- db_ppi_2 %>%
+  left_join(iostart_dates)
+  
+```
+
+
+```{r}
+ppi.all.days <- db_ppi_dates %>%
+	mutate(days.ppi.iostart.1 = as.Date(ORDERING_DATE) - iostart) %>%
+  mutate(days.ppi.iostart.2 = if_else(!is.na(END_DATE),
+										true = END_DATE - iostart,
+										false =  ORDERING_DATE + 30 - iostart),
+		   pills = gsub("^(\\d+).*", "\\1", QUANTITY),
+		   refills = if_else(is.na(REFILLS),
+		   					 true = 0,
+		   					 false = REFILLS),
+		   pills = as.numeric(pills),
+		   pills = if_else(!is.na(pills),
+		                   true = pills,
+		                   false = 30),
+		   # Pills is still set as character
+		   total.pills = pills * (refills + 1),
+		   days.ppi.iostart.3 = if_else(!is.na(END_DATE),
+										true = END_DATE - iostart,
+										false =  ORDERING_DATE + total.pills - iostart),
+		   ppi.iostart.1 = if_else(days.ppi.iostart.1 < 0 & 
+		   									 days.ppi.iostart.1 > -30,
+		   						   true = 1,
+		   						   false = 0),
+		   ppi.iostart.2 = if_else(days.ppi.iostart.2 < 30 & 
+		   									 days.ppi.iostart.2 > 0,
+		   						   true = 1,
+		   						   false = 0),
+		   ppi.iostart.3 = if_else(days.ppi.iostart.3 < total.pills & 
+		   									 days.ppi.iostart.3 > 0,
+		   						   true = 1,
+		   						   false = 0)) %>%
+  filter(!is.na(iostart)) 
+```
+
+```{r}
+
+# ppi.all.days %>%
+# ggplot(aes(x = as.numeric(pills))) +
+#   geom_histogram(bins = 100) +
+#   xlim(0, 100)
+# 
+# # hist(as.numeric(ppi.all.days$pills), xlim = c(0, 100), breaks = 100)
+
+```
+
+```{r}
+
+ppi.1.sum <- ppi.all.days %>%
+  select(MRN, ppi.iostart.1, ppi.marium) %>%
+  group_by(MRN) %>%
+  # Sum total ppi us for each subject
+  summarise(sum.1 = sum(ppi.iostart.1)) %>%
+  # Make a binary column (1 = ppi was used, 0 = ppi was not used) 
+  mutate(sum.bin.1 = if_else(sum.1 > 1, 1, sum.1))
+
+ppi.2.sum <- ppi.all.days %>%
+  select(MRN, ppi.iostart.2) %>%
+  group_by(MRN) %>%
+  summarise(sum.2 = sum(ppi.iostart.2)) %>%
+  mutate(sum.bin.2 = if_else(sum.2 > 1, 1, sum.2))
+
+ppi.3.sum <- ppi.all.days %>%
+  select(MRN, ppi.iostart.3) %>%
+  group_by(MRN) %>%
+  summarise(sum.3 = sum(ppi.iostart.3)) %>%
+  mutate(sum.bin.3 = if_else(sum.3 > 1, 1, sum.3))
+
+ppi.marium.sum <- ppi.all.days %>%
+  select(MRN, ppi.marium) %>%
+  group_by(MRN) %>%
+  summarise(sum.marium = sum(ppi.marium)) %>%
+  mutate(marium.bin = if_else(sum.marium > 1, 1, sum.marium))
+```
+```{r}
+
+cancer.MRN <- unique(ppi.all.days %>%
+  group_by(MRN) %>%
+  select(MRN, cancer.name))
+
+```
+
+
+```{r}
+ppi.sum <- ppi.1.sum %>%
+  left_join(ppi.2.sum) %>%
+  left_join(ppi.3.sum) %>%
+  left_join(ppi.marium.sum) %>%
+  left_join(cancer.MRN) %>%
+  select(-sum.marium)
+		   
+```
+
+
+
+
+```{r}
+
+# # DF with MRN, Marium_ppi, all my ppi columns
+# # Test with table(DF$Marium_ppi, DF$ppi.iostart.1)
+# 
+# MRN <- unique(ppi.all.days$MRN)
+
+```
+
+```{r}
+
+# # Some subjects with ppi use are excluded because we do not have information on the timing of their medication
+# filtered_MRN <- filter(db_full_phi, record_id %in% MRN)
+
+
+```
+
+
+```{r}
+# I need to label
+marium.compare.1 <- table(ppi.sum$marium.bin, ppi.sum$sum.bin.1)
+
+marium.compare.1
+
+```
+
+```{r}
+
+marium.compare.2 <- table(ppi.sum$marium.bin, ppi.sum$sum.bin.2)
+
+marium.compare.2
+
+```
+
+```{r}
+
+marium.compare.3 <- table(ppi.sum$marium.bin, ppi.sum$sum.bin.3)
+
+marium.compare.3
+
+
+```
+
+```{r}
+chisq.test(ppi.sum$marium.bin, ppi.sum$sum.bin.2)
+chisq.test(ppi.sum$marium.bin, ppi.sum$sum.bin.3)
+
+# Maybe make a bargraph
+```
+# Faction of people on ppis in 2, 3, and Marium's (maybe just for NSCLC)
+  # These should all be in the same data frame (along with cancer type)
+  
+```{r}
+
+summary.cancer.sorted <- ppi.sum %>%
+  group_by(cancer.name) %>%
+  summarise(frac.ppi.1 = sum(sum.bin.1)/nrow(ppi.sum), frac.ppi.2 = sum(sum.bin.2)/nrow(ppi.sum), frac.ppi.3 = sum(sum.bin.3)/nrow(ppi.sum), frac.ppi.marium = sum(marium.bin)/nrow(ppi.sum)) 
+
+summary <- ppi.sum %>%
+  summarise(frac.ppi.1 = sum(sum.bin.1)/nrow(ppi.sum), frac.ppi.2 = sum(sum.bin.2)/nrow(ppi.sum), frac.ppi.3 = sum(sum.bin.3)/nrow(ppi.sum), frac.ppi.marium = sum(marium.bin)/nrow(ppi.sum)) 
+
+
+```
+
+
+
+
+```{r}
+
+test.4 <- ppi.all.days %>%
+select(MRN, days.ppi.iostart.1, days.ppi.iostart.2, days.ppi.iostart.3) %>%
+gather(-MRN, "calc.method", "days.from.io.start") %>%
+ggplot(aes(x = days.from.io.start)) +
+geom_density(aes(fill = calc.method))
+
+
+```
+
+
+
+```{r}
+# Density plots
+
+# days.ppi.iostart.1 = as.Date(ORDERING_DATE) - iostart
+ppi.all.days %>%
+ggplot(aes(x = days.ppi.iostart.1)) +
+  geom_density() +
+  xlim(-30, 30)
+
+
+# days.ppi.iostart.2 = if_else(!is.na(END_DATE),
+								#     true = END_DATE - iostart,
+								# 		false =  ORDERING_DATE + 30 - iostart
+ppi.all.days %>%
+ggplot(aes(x = days.ppi.iostart.2)) +
+  geom_density() +
+  xlim(-30, 30)
+
+# days.ppi.iostart.3 = if_else(!is.na(END_DATE),
+# 										true = END_DATE - iostart,
+# 										false =  ORDERING_DATE + total.pills - iostart
+ppi.all.days %>%
+ggplot(aes(x = days.ppi.iostart.3)) +
+  geom_density() +
+  xlim(-30, 30)
+
+
+
+```
+
+
+
+
+
+
+
+
+
+# Collapse grouped by id
+```{r}
+# 
+# ppi.org.days <- ppi.all.days %>%
+#   group_by(MRN) %>%
+#   summarise(days.to.start = glue_collapse(unique(days.ppi.iostart.2), sep = ",")) %>%
+#   spread(key = "MRN", value = "days.to.start")
+# 
+
+
+```
+
+
