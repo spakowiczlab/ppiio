@@ -1,0 +1,55 @@
+---
+title: "The effect of PPIs on survival"
+author: "Rebecca Hoyd"
+date: "January 7, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(survival)
+library(survminer)
+```
+
+
+# Load data
+
+```{r load data}
+db <- read.csv("T:/Labs/Spakowicz/data/co-med-io/clindat_2020-05-01.csv", stringsAsFactors = F)
+cancers <- unique(db$cancer.name)
+```
+
+
+# Survival: All samples
+
+```{r}
+all_surv <- survfit(Surv(days, vitalstatus) ~ ppi, data = db)
+
+ggsurvplot(all_surv, pval = T, risk.table = T)
+```
+
+# Survival: Split cancers
+
+## Create models
+
+```{r}
+mods.list <- list()
+
+for(d in cancers){
+  tmp <- db %>%
+    filter(cancer.name == d)
+  tmp.fit <- surv_fit(Surv(days, vitalstatus) ~ ppi, data = tmp)
+  mods.list[[d]] <- tmp.fit
+}
+```
+
+## Display plots
+
+```{r}
+lapply(cancers, function(x) try(ggsurvplot(mods.list[[x]], pval = T, risk.table = T, title = x)))
+```
+
