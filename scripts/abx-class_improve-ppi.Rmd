@@ -621,7 +621,7 @@ deidentdb2 <- db2 %>%
   left_join(db.oth.med.break) %>%
   left_join(irae_time) %>%
   left_join(ppi_iostart) %>%
-dplyr::select(X, race, sex, age, bmi.calc, vitalstatus, ecog, comorb.score, cancer, cancer.name, staging, abxdays.to.iostart, sterdays.to.start, ppidays.to.iostart)
+  dplyr::select(X, race, sex, age, bmi.calc, vitalstatus, ecog, comorb.score, cancer, cancer.name, staging, abxdays.to.iostart, sterdays.to.start, ppidays.to.iostart, days)
 
 ```
 

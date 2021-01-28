@@ -230,13 +230,17 @@ summary <- ppi.sum %>%
 
 
 ```{r}
-
+# Cut density plot
+# X axis time is what we need
+# Y axis needs to be how many people are on the drug (by day)
 test.4 <- ppi.all.days %>%
 select(MRN, days.ppi.iostart.1, days.ppi.iostart.2, days.ppi.iostart.3) %>%
-gather(-MRN, "calc.method", "days.from.io.start") %>%
+gather(-MRN, key =  "calc.method", value = "days.from.io.start") %>%
 ggplot(aes(x = days.from.io.start)) +
-geom_density(aes(fill = calc.method))
+geom_density(aes(fill = calc.method, alpha = 0.1)) +
+  xlim(-30, 30)
 
+test.4
 
 ```
 
