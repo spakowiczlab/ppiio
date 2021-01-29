@@ -19,8 +19,20 @@ library(survminer)
 # Load data
 
 ```{r load data}
-db <- read.csv("T:/Labs/Spakowicz/data/co-med-io/clindat_2020-05-01.csv", stringsAsFactors = F)
-cancers <- unique(db$cancer.name)
+db.old <- read.csv("T:/Labs/Spakowicz/data/co-med-io/clindat_2020-05-01.csv", stringsAsFactors = F)
+cancer.key <- unique(db.old[, c("cancer", "cancer.name")])
+
+db <- read.csv("T:/Labs/Spakowicz/projects/ppiio/data/raw/CoRR4684/2021-01-27/CoRR4684ARetrospecti_DATA_2021-01-27_1430.csv", stringsAsFactors = F) %>%
+  left_join(cancer.key) %>%
+  mutate(deathdate = ifelse(deathdate == "", NA, deathdate),
+         lastcontact = ifelse(lastcontact == "", NA, lastcontact)) %>%
+  mutate(eventdate = coalesce(deathdate, lastcontact)) %>%
+  mutate(eventdate = as.POSIXct(eventdate, format = "%F"),
+         iostart = as.POSIXct(iostart, format = "%F")) %>%
+  mutate(days = eventdate - iostart) %>%
+  filter(vitalstatus != 3) %>%
+  mutate(vitalstatus = ifelse(vitalstatus == 1, 1, 0))
+cancers <- cancer.key$cancer.name
 ```
 
 
