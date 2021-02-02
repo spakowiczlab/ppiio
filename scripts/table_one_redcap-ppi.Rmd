@@ -46,7 +46,15 @@ cancer.key <-
 
 load data
 ```{r}
-db <- readRDS("T:/Labs/Spakowicz/data/exoio/table_one_db.RDS")
+db <- readRDS("T:/Labs/Spakowicz/data/exoio/table_one_db.RDS") # want this to be in ppiio
+
+# T:/Labs/Spakowicz/projects/ppiio/data/raw/CoRR4684
+# also read in the other db (P118)
+# T:/Labs/Spakowicz/projects/ppiio/data/raw/P118
+
+#[[[[these contain PHI -- no output to console that shows MRNS or dates, particularly if you're going to knit the Rmd]]]]
+
+# safest to start by selecting only those variables you need e.g. age, gender, treatment, ppi, etc
 
 ```
 
