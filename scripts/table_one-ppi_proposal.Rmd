@@ -86,9 +86,14 @@ ppi_corr <- CoRR %>%
   filter(!is.na(iostart))%>%
   mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
   left_join(cancer.key) %>%
-  filter(cancer.name %in% c("Other","melanoma","non-small cell lung cancer","small cell lung cancer"))%>%
-  rename("comorb.score"="Total")
+  # filter(cancer.name %in% c("Other","melanoma","non-small cell lung cancer","small cell lung cancer"))%>%
+  rename("comorb.score"="Total") %>%
+  mutate(Cancer = if_else(grepl("melanoma|non-small cell lung cancer",
+                                     cancer.name),
+                               true = cancer.name,
+                               false = "Other"))
 
+table(ppi_corr$Cancer)
    ##only throw out NA for survival info
   
 
@@ -156,7 +161,8 @@ ionames <- data.frame(immunotherapy = c(1,2,3,4,5,6,7,8,9,10),
                       stringsAsFactors = FALSE)
 
 # Select and adjust dataframe for Table 1
-coxdf <- ppi_corr %>%
+coxdf <- 
+  ppi_corr %>%
   select(MRN, vitalstatus, age, bmi, ecog, sex, cancer.name, contains("ppi"), -contains("other_ppi"), -contains("ppi_reason"), 
         immunotherapy, chemo_prior, line_of_therapy,other_io, staging, comorb.score,follow_up) %>%
   left_join(ionames) %>%
@@ -165,13 +171,13 @@ coxdf <- ppi_corr %>%
          BMI = bmi,
          Age = age,
          follow_up_time=follow_up,
-         Cancer = cancer.name, 
+         # Cancer = cancer.name, 
          CCI = ifelse(comorb.score <= 1, "0-1", ">2"),
          Sex = sex,
          Therapy = ifelse(line_of_therapy == 1,"1",">1"),
-         Chemo_prior = chemo_prior,
-         Immunotherapy = as.factor(Immunotherapy)) %>%
-  filter(!Immunotherapy == "Nivolumab + Chemotherapy")
+         Chemo_prior = chemo_prior)
+         # Immunotherapy = as.factor(Immunotherapy))
+  # filter(!Immunotherapy == "Nivolumab + Chemotherapy")
          # Immunotherapy = ifelse(Immunotherapy == "Nivolumab + Chemotherapy",
          #                        "Other", Immunotherapy),
          # Immunotherapy = as.factor(Immunotherapy),
@@ -180,37 +186,68 @@ coxdf <- ppi_corr %>%
          #                             "Nivolumab", "Nivolumab + Ipilimumab", 
          #                             "Pembrolizumab", "Tremelimumab", "Other"))
 ```
+ Adjust the immunotherapy to four categories
+```{r}
+coxdf <- 
+  coxdf %>%
+  # mutate(Immunotherapy = as.character(Immunotherapy)) %>%
+  mutate(Immunotherapy = if_else(grepl("Atezo|Durvalumab$|Nivolumab$|Pembro",
+                                           Immunotherapy),
+                                     true = "PD1/L1",
+                                     false = Immunotherapy),
+         Immunotherapy = if_else(grepl("Durvalumab \\+ Tremelimumab$|Nivolumab \\+ Ipilimumab$",
+                                           Immunotherapy),
+                                     true = "PD1/L1 + CTLA4",
+                                     false = Immunotherapy),
+         Immunotherapy = if_else(grepl("Tremelimumab$|Ipilimumab$",
+                                           Immunotherapy),
+                                     true = "CTLA4",
+                                     false = Immunotherapy),
+         Immunotherapy = if_else(grepl("Nivolumab \\+ Chemotherapy",
+                                           Immunotherapy),
+                                     true = "Other",
+                                     false = Immunotherapy))
+table(coxdf$Immunotherapy)
+table(coxdf$Immunotherapy)
+         
+```
+
+
 ##CHECK MEDICATION; check p val for different catagory between CCI/ECOG &ppi
 # Creating table 1
 
 ```{r}
-listVars <- c("BMI", "Age", "Sex", "vitalstatus","ECOG PS","Cancer", "Staging", "Immunotherapy","Chemo_prior","follow_up_time")
+listVars <- c("Age", "Sex", "vitalstatus","ECOG PS","Cancer", "Staging", "Immunotherapy","Chemo_prior","follow_up_time")
 catVars <- c("Sex", "Cancer", "vitalstatus","Immunotherapy", "ECOG PS","Staging")
 table1 <- CreateTableOne(vars = listVars,
                          data = coxdf,
                          factorVars = catVars,
                          strata = c("ppi","Therapy"))
-tbl1 <- print(table1, nonnormal = "follow_up_time")
+tbl1.ppi.therapy <- print(table1, nonnormal = "follow_up_time")
 ######################################################################################
-listVars2 <- c("BMI", "Age", "Sex", "vitalstatus","ECOG PS","Cancer", "Staging", "Immunotherapy","Therapy","ppi","follow_up_time")
+listVars2 <- c("Age", "Sex", "vitalstatus","ECOG PS","Cancer", "Staging", "Immunotherapy","Therapy","ppi","follow_up_time")
 catVars2 <- c("Sex", "Cancer", "vitalstatus","Immunotherapy", "ECOG PS","Staging","Therapy","ppi")
 table2 <- CreateTableOne(vars = listVars2,
                          data = coxdf,
                          factorVars = catVars2,
-                         strata = "Chemo_prior")
-tbl2 <- print(table2, nonnormal = "follow_up_time")
+                         strata = c("ppi", "Chemo_prior"))
+tbl1.ppi.chemoprior <- print(table2, nonnormal = "follow_up_time")
 ######################################################################################
-listVars3 <- c("BMI", "Age", "Sex", "vitalstatus","ECOG PS","Cancer", "Staging", "Immunotherapy","Therapy","Chemo_prior","follow_up_time")
+listVars3 <- c("Age", "Sex", "vitalstatus","ECOG PS","Cancer", "Staging", "Immunotherapy","Therapy","Chemo_prior","follow_up_time")
 catVars3 <- c("Sex", "Cancer","vitalstatus", "Immunotherapy", "ECOG PS","Therapy","Staging")
 table3 <- CreateTableOne(vars = listVars3,
                          data = coxdf,
                          factorVars = catVars3,
                          strata = "ppi")
-tbl3 <- print(table3, nonnormal = "follow_up_time")
+tbl1.ppi <- print(table3, nonnormal = "follow_up_time")
 ######################################################################################
-write.csv(tbl1, "C:/Users/liu195/Desktop/table1.csv")
-write.csv(tbl2, "C:/Users/liu195/Desktop/table2.csv")
-write.csv(tbl3, "C:/Users/liu195/Desktop/table3.csv")
+```
+
+Write table versions to files.
+```{r write}
+write.csv(tbl1.ppi.therapy, "../tables/table1_ppi-lotherapy.csv")
+write.csv(tbl1.ppi.chemoprior, "../tables/table1_ppi-chemoprior.csv")
+write.csv(tbl1.ppi, "../tables/table1_ppi.csv")
 ```
 
 ```{r}
