@@ -91,7 +91,9 @@ ppi_corr <- CoRR %>%
   mutate(Cancer = if_else(grepl("melanoma|non-small cell lung cancer",
                                      cancer.name),
                                true = cancer.name,
-                               false = "Other"))
+                               false = "Other"),
+         Cancer = fct_relevel(Cancer, c("melanoma", "non-small cell lung cancer",
+                                        "Other")))
 
 table(ppi_corr$Cancer)
    ##only throw out NA for survival info
@@ -206,7 +208,8 @@ coxdf <-
          Immunotherapy = if_else(grepl("Nivolumab \\+ Chemotherapy",
                                            Immunotherapy),
                                      true = "Other",
-                                     false = Immunotherapy))
+                                     false = Immunotherapy),
+         Immunotherapy = fct_relevel(Immunotherapy, c("PD1/L1", "CTLA4", "PD1/L1 + CTLA4", "Other")))
 table(coxdf$Immunotherapy)
 table(coxdf$Immunotherapy)
          
