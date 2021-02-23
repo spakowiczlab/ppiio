@@ -13,7 +13,8 @@ source("00-paths.R")
 ```
 
 ```{r}
-x <- read.csv("../data/derived/slids.csv")
+x <- read.csv("../data/derived/slids.csv") %>%
+  rename("SLid" = "RNA.SLID")
 
 head(x)
 ```
@@ -28,26 +29,33 @@ files
 ```
 
 ```{r}
-z <- lapply(files, function(x) readLines(x) %>% data.frame) %>%
-  bind_rows() %>%
-  dplyr::rename("url" = ".")
+z <- lapply(files, function(x) readLines(x) %>% 
+              data.frame)
+names(z) <- gsub(".*/(.*)_DNAnexus.*", "\\1", files)
+for (i in 1:length(z)) {
+  z[[i]] <- 
+    z[[i]] %>%
+    mutate(cancer = names(z)[i])
+}
 
-dim(z)
-```
-
-Retrieve just the unique SLid for comparison. 
-
-```{r}
-slids <- 
+id.can <- 
   z %>%
+  bind_rows() %>%
+  dplyr::rename("url" = ".") %>%
   mutate(SLid = gsub("http.*/(SL.*)_[1,2]\\.fastq\\.gz", "\\1", url)) %>%
-  select(SLid) %>%
-  unique
+  select(-url) %>%
+  filter(!duplicated(SLid))
+
+dim(id.can)
 ```
 
-
 ```{r}
-sum(x$RNA.SLID %in% slids$SLid)
+comb <- 
+  id.can %>%
+  inner_join(x)
+
+dim(comb)
+table(comb$cancer)
 ```
 
 Ok good! We have access to all of them.
