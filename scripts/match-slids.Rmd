@@ -7,6 +7,9 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+source("00-paths.R")
 ```
 
 ```{r}
@@ -16,7 +19,35 @@ head(x)
 ```
 
 ```{r}
-list.files("/fs/ess/PAS1695/projects/exotic/",
-           recursive = TRUE)
+files <- list.files(file.path("T:", "Labs", "Spakowicz", 
+                     "projects", "exotic", "download_urls",
+                     "fastq", "2021-02-22"),
+                    full.names = TRUE)
+
+files
 ```
 
+```{r}
+z <- lapply(files, function(x) readLines(x) %>% data.frame) %>%
+  bind_rows() %>%
+  dplyr::rename("url" = ".")
+
+dim(z)
+```
+
+Retrieve just the unique SLid for comparison. 
+
+```{r}
+slids <- 
+  z %>%
+  mutate(SLid = gsub("http.*/(SL.*)_[1,2]\\.fastq\\.gz", "\\1", url)) %>%
+  select(SLid) %>%
+  unique
+```
+
+
+```{r}
+sum(x$RNA.SLID %in% slids$SLid)
+```
+
+Ok good! We have access to all of them.
