@@ -39,4 +39,7 @@ vignettes/*.pdf
 .Renviron
 
 # json file
-.ppiio.json
+ppiio.json
+
+#paths file
+00-paths.R
