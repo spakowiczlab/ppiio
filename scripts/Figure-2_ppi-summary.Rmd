@@ -1,5 +1,5 @@
 ---
-title: "Code to produce Figure 1: Summary of proton pump inhibitor (PPI) effects at iostart"
+title: "Code to produce Figure 2: Summary of proton pump inhibitor (PPI) effects at iostart"
 author: "Mitchell Muniak"
 date: "11-6-2020"
 output: html_document
