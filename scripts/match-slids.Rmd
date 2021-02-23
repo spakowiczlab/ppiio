@@ -1,0 +1,22 @@
+---
+title: "match-slids"
+author: "Dan Spakowicz"
+date: "2/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+x <- read.csv("../data/derived/slids.csv")
+
+head(x)
+```
+
+```{r}
+list.files("/fs/ess/PAS1695/projects/exotic/",
+           recursive = TRUE)
+```
+
