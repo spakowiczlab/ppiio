@@ -1,0 +1,114 @@
+---
+title: "medication-summary_orien"
+author: "Dan Spakowicz"
+date: "2/22/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+source("00-paths.R")
+```
+
+This is a summary of medication data shared with Dan on Feb 22, 2021 by Rachel 
+
+```{r}
+files <- list.files(file.path(paths$phi, "TCC000139"),
+                    full.names = TRUE)
+files
+```
+
+```{r}
+x <- readxl::read_excel(files[grep("ClinicalDataPoints_withSLIDS", 
+                                   files
+                                   )
+                              ]
+                        )
+
+dim(x)
+names(x)
+table(x$Tissue_Type_RNA_Seq)
+```
+
+Why 686? Are these the files that are also in Dwight's database? Not sure why the tissue type was included.
+
+```{r}
+y <- readxl::read_excel(files[grep("MedicationLogFile_withSLIDS", files)],
+                        na = "NULL") %>%
+  mutate(Simple_Generic_Name = if_else(is.na(Simple_Generic_Name),
+                                       true = Clarity_Med_Name,
+                                       false = Simple_Generic_Name))
+
+dim(y)
+names(y)
+```
+
+```{r}
+y %>%
+  select(`RNA-SLID`) %>%
+  unique() %>%
+  tally()
+```
+
+```{r}
+  y %>%
+  group_by(`RNA-SLID`) %>%
+  summarize(meds.per.pt = n()) %>%
+  ggplot(aes(x = meds.per.pt)) +
+  geom_histogram() +
+  theme_bw()
+
+```
+
+```{r}
+y %>%
+  ggplot(aes(x = Days_Btwn_Collect_and_Med_Start)) +
+  geom_histogram() +
+  theme_bw()
+```
+
+```{r}
+y %>%
+  group_by(Simple_Generic_Name) %>%
+  summarize(n = n()) %>%
+  arrange(-n) %>%
+  top_n(20) %>%
+  ggplot(aes(x = reorder(Simple_Generic_Name, -n), y = n)) +
+  geom_bar(stat = "identity", show.legend = FALSE) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab("")
+```
+
+How many SLIDs are in CoRR4684?
+
+```{r}
+z <- readxl::read_excel(files[grep("patientsRNAseqAvail", files)])
+
+dim(z)
+names(z)
+```
+
+```{r}
+sum(!is.na(z$`TCC SL ID`))
+
+sum(z$`TCC SL ID` %in% x$`RNA-SLID`)
+```
+
+Well that's not very many.
+
+Check if we have RNAseq data for these in PAS1695. To facilitate this, output a list of the SLIDs for which we have med information to compare to other lists.
+
+```{r}
+slids <- 
+  y %>%
+  select(`RNA-SLID`) %>%
+  unique
+
+write.csv(slids,
+          file = "../data/derived/slids.csv",
+          row.names = FALSE)
+```
+
