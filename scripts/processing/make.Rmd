@@ -1,0 +1,18 @@
+---
+title: "execute drake processing"
+author: "Rebecca Hoyd"
+date: "2/25/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Load plan
+
+```{r}
+fs <- list.files("R", full.names = T)
+lapply(fs, function(x) source(x))
+```
