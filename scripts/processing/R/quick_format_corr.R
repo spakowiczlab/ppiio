@@ -13,12 +13,6 @@ quick_format_CoRR <- function(corrdb, nio, cankey){
     filter(!is.na(iostart))%>%
     mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
     left_join(cankey) %>%
-    mutate(Cancer = if_else(grepl("melanoma|non-small cell lung cancer",
-                                  cancer.name),
-                            true = cancer.name,
-                            false = "Other"),
-           Cancer = fct_relevel(Cancer, c("melanoma", "non-small cell lung cancer",
-                                          "Other"))) %>%
     filter(immunotherapy != 11) %>%
     drop_na(iostart, ppi, date, dob) %>%
     filter(!MRN %in% nio)

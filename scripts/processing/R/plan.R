@@ -1,13 +1,18 @@
 plan <- drake_plan(
-  CoRR <- read.csv("T:/Labs/Spakowicz/projects/ppiio/data/raw/CoRR4684/2021-01-27/CoRR4684ARetrospecti_DATA_2021-01-27_1430.csv", 
+  CoRR = read.csv("T:/Labs/Spakowicz/projects/ppiio/data/raw/CoRR4684/2021-01-27/CoRR4684ARetrospecti_DATA_2021-01-27_1430.csv", 
                    stringsAsFactors = F),
-  noio <- c(900489173, 980119036, 980187416, 980374070, 980412602, 980495473, 980524866, 980526132,
+  meds = read_excel("T:/Labs/Spakowicz/data/co-med-io/MarAdmin_Thrombin_Inhibitors_study678.xlsx", skip = 1),
+  noio = c(900489173, 980119036, 980187416, 980374070, 980412602, 980495473, 980524866, 980526132,
             980543006, 980546304, 980607566, 980622068, 900435346, 907268666, 980360074, 980282827,
             980450586, 907227211, 907447227, 900215730, 980484225, 907178894, 970337309, 907897766,
             908280483, 980281409, 970014582, 907134292, 980346747, 906232022, 980445076, 908104037,
             980465933, 907777800, 980074180, 908177110, 980081274, 908058264, 900516135, 907613047, 
             980327382, 980398704),
-  cancer.key <- generate_cancer_key(),
-  CoRR.form <- quick_format_CoRR(CoRR, noio, cancer.key),
-  med.timings <- pull_timing_info(class.key, meds),
+  cancer.key = generate_cancer_key(),
+  CoRR.form = quick_format_CoRR(CoRR, noio, cancer.key),
+
+  # This could also be a csv defining the important relationships, of course
+  class.key = as.data.frame(cbind(medname = c(),
+                                   medclass = c())),
+  CoRR.timing = pull_timing_info(class.key, meds, CoRR.form)
 )

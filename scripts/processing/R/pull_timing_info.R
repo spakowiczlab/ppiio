@@ -15,20 +15,48 @@ pull_timing_info <- function(des.meds, meds.list, cdb){
   
   # Generate object that has all necessary info for timing columns and calculate for each entry.
   iostarts <- cdb %>%
-    select(record_id, iostart)
+    select(MRN, iostart)
   
   time.obj.start <- des.meds.full %>%
     left_join(meds.list) %>%
-    mutate(record_id == MRN, 
+    mutate(MRN = as.character(MRN), 
            START_DATE = as.Date(START_DATE)) %>%
-    select(record_id, GENERIC_NAME, START_DATE, QUANTITY, REFILLS) %>%
-    # right_join(iostarts) %>%
+    select(MRN, GENERIC_NAME, START_DATE, QUANTITY, REFILLS, medname, medclass) %>%
+    inner_join(iostarts) %>%
     mutate(REFILLS = ifelse(is.na(REFILLS), 0, REFILLS),
            # quant.num = as.numeric(str_extract("^\\d+", QUANTITY)),
            med.dur = (REFILLS+1) * 30,
-           days.to.io = START_DATE - iostart)
+           days.to.io = START_DATE - iostart,
+           stop.date = days.to.io + med.dur - 1,
+           )
   
+  relative.days.covered <- lapply(1:nrow(time.obj.start), function(i) paste(time.obj.start$days.to.io[i]:time.obj.start$stop.date[i], collapse = ","))
+  
+  time.obj.start$relative.days.covered <- unlist(relative.days.covered)
   # Collapse timing info by med, class
-    
+  
+  time.med <- time.obj.start %>%
+    group_by(record_id, medname) %>%
+    summarise(alldays = paste(relative.days.covered, collapse = ","))
+  time.med.unq <- lapply(1:nrow(time.med), function(x) paste(unique(unlist(strsplit(time.med$alldays[x], split = ","))), collapse = ","))
+  time.med$alldays <- unlist(time.med.unq)
+  time.med <- time.med %>%
+    mutate(medname = paste0(medname, ".days.to.iostart")) %>%
+    spread(key = medname, value = alldays)
+  
+  time.class <- time.obj.start %>%
+    group_by(record_id, medclass) %>%
+    summarise(alldays = paste(relative.days.covered, collapse = ","))
+  time.class.unq <- lapply(1:nrow(time.class), function(x) paste(unique(unlist(strsplit(time.class$alldays[x], split = ","))), collapse = ","))
+  time.class$alldays <- unlist(time.class.unq)
+  time.class <- time.class %>%
+    mutate(medclass = paste0(medclass, ".days.to.iostart")) %>%
+    spread(key = medclass, value = alldays)
+  
+  corr.addtime <- cdb %>%
+    left_join(time.med) %>%
+    left_join(time.class)
+  
+  return(corr.addtime)
 
 }

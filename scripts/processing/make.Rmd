@@ -16,3 +16,9 @@ knitr::opts_chunk$set(echo = TRUE)
 fs <- list.files("R", full.names = T)
 lapply(fs, function(x) source(x))
 ```
+
+# Run the processing
+
+```{r}
+
+```
