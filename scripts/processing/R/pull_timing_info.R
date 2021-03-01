@@ -35,14 +35,15 @@ pull_timing_info <- function(des.meds, meds.list, cdb){
   time.obj.start$relative.days.covered <- unlist(relative.days.covered)
   # Collapse timing info by med, class
   
-  time.med <- time.obj.start %>%
-    group_by(record_id, medname) %>%
-    summarise(alldays = paste(relative.days.covered, collapse = ","))
-  time.med.unq <- lapply(1:nrow(time.med), function(x) paste(unique(unlist(strsplit(time.med$alldays[x], split = ","))), collapse = ","))
-  time.med$alldays <- unlist(time.med.unq)
-  time.med <- time.med %>%
-    mutate(medname = paste0(medname, ".days.to.iostart")) %>%
-    spread(key = medname, value = alldays)
+  # Hold off on the by-med version for now - probably only need if we want to break down ppi and h2b further, like with ABX classes
+  # time.med <- time.obj.start %>%
+  #   group_by(record_id, medname) %>%
+  #   summarise(alldays = paste(relative.days.covered, collapse = ","))
+  # time.med.unq <- lapply(1:nrow(time.med), function(x) paste(unique(unlist(strsplit(time.med$alldays[x], split = ","))), collapse = ","))
+  # time.med$alldays <- unlist(time.med.unq)
+  # time.med <- time.med %>%
+  #   mutate(medname = paste0(medname, ".days.to.iostart")) %>%
+  #   spread(key = medname, value = alldays)
   
   time.class <- time.obj.start %>%
     group_by(record_id, medclass) %>%
@@ -54,7 +55,7 @@ pull_timing_info <- function(des.meds, meds.list, cdb){
     spread(key = medclass, value = alldays)
   
   corr.addtime <- cdb %>%
-    left_join(time.med) %>%
+    # left_join(time.med) %>% 
     left_join(time.class)
   
   return(corr.addtime)
