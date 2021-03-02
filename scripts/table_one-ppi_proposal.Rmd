@@ -46,7 +46,7 @@ cancer.key <-
   )
 ```
 
-load data
+# load data
 ```{r}
 # db <- readRDS("T:/Labs/Spakowicz/data/exoio/table_one_db.RDS") # want this to be in ppiio
 CoRR <- read.csv("T:/Labs/Spakowicz/projects/ppiio/data/raw/CoRR4684/2021-01-27/CoRR4684ARetrospecti_DATA_2021-01-27_1430.csv", stringsAsFactors = F)
@@ -54,7 +54,7 @@ CoRR <- read.csv("T:/Labs/Spakowicz/projects/ppiio/data/raw/CoRR4684/2021-01-27/
 
 
 #P188 <- read.csv("T:/Labs/Spakowicz/projects/ppiio/data/raw/P188/2021-01-27/P188NSCLCIOTox111611_DATA_2021-01-27_1441.csv")
-comorb <- read_excel("T:/Labs/Spakowicz/projects/co-med-io/CharlsonScore_Presley_08272019 acj.xlsx")
+# comorb <- read_excel("T:/Labs/Spakowicz/projects/co-med-io/CharlsonScore_Presley_08272019 acj.xlsx")
                                                
 # T:/Labs/Spakowicz/projects/ppiio/data/raw/CoRR4684
 # also read in the other db (P118)
@@ -66,18 +66,21 @@ comorb <- read_excel("T:/Labs/Spakowicz/projects/co-med-io/CharlsonScore_Presley
 
 ```
 
+# Format to cleaned ver
 
+Note: No IO comes from a curated list of MRNs 
 ```{r}
-comorb.join <- comorb %>%
-  select(MRN, Total) %>%
-  rename("comorb.score" = "Total") %>%
-  mutate(MRN = as.character(MRN))
+# comorb.join <- comorb %>%
+#   select(MRN, Total) %>%
+#   rename("comorb.score" = "Total") %>%
+#   mutate(MRN = as.character(MRN))
 ppi_corr <- CoRR %>%
   rename("MRN"="record_id") %>%
-  select(MRN, dob, cancer, iostart, contains("stop"), io_2_start, io_3_start, vitalstatus, bmi,
-         ecog,sex,contains("ppi"), immunotherapy,chemo_prior,line_of_therapy, other_io, staging, deathdate,
-         lastcontact) %>%
-  select(-contains("subs"), -contains("other_ppi"), -contains("ppi_reason")) %>%
+  # filter(MRN %in% db$record_id) %>% 
+  # select(MRN, dob, cancer, iostart, contains("stop"), io_2_start, io_3_start, vitalstatus, bmi,
+  #        ecog,sex,contains("ppi"), immunotherapy,chemo_prior,line_of_therapy, other_io, staging, deathdate,
+  #        lastcontact) %>%
+  # select(-contains("subs"), -contains("other_ppi"), -contains("ppi_reason")) %>%
   filter(vitalstatus != 3) %>%
   mutate(vitalstatus = ifelse(vitalstatus == 1, 1, 0))%>%
   mutate(deathdate = ifelse(deathdate == "", NA, deathdate),
@@ -99,7 +102,8 @@ ppi_corr <- CoRR %>%
          Cancer = fct_relevel(Cancer, c("melanoma", "non-small cell lung cancer",
                                         "Other"))) %>%
   filter(immunotherapy != 11) %>%
-  drop_na(iostart, ppi, date, dob) 
+  drop_na(iostart, ppi, date, dob) %>%
+  filter(!MRN %in% noio)
   # left_join(comorb.join)
 
 # table(ppi_corr$Cancer & )
@@ -138,6 +142,8 @@ ppi_corr <- CoRR %>%
 #   rename("comorb.score"="Total") %>%
 #   filter(!duplicated(MRN))
   
+
+write.csv(ppi_corr, "../data/2021-01-27_db-formatted.csv", row.names = F)
 ```
 
 summary
@@ -172,9 +178,9 @@ ionames <- data.frame(immunotherapy = c(1,2,3,4,5,6,7,8,9,10),
 # Select and adjust dataframe for Table 1
 coxdf <- 
   ppi_corr %>%
-  select(MRN, vitalstatus, age, bmi, ecog, sex, cancer.name, contains("ppi"), 
-        immunotherapy, chemo_prior, line_of_therapy,other_io, staging, comorb.score,follow_up) %>%
-  select(-contains("other_ppi"), -contains("ppi_reason")) %>%
+  # select(MRN, vitalstatus, age, bmi, ecog, sex, cancer.name, contains("ppi"), 
+  #       immunotherapy, chemo_prior, line_of_therapy,other_io, staging, comorb.score,follow_up) %>%
+  # select(-contains("other_ppi"), -contains("ppi_reason")) %>%
   left_join(ionames) %>%
   mutate(`ECOG PS` = fct_relevel(ifelse(ecog > 2, ">2", ecog), "0","1","2",">2"),
          Staging  = ifelse(staging == 5, "Unknown", staging),
@@ -182,7 +188,7 @@ coxdf <-
          Age = age,
          follow_up_time=follow_up,
          # Cancer = cancer.name, 
-         CCI = ifelse(comorb.score <= 1, "0-1", ">2"),
+         # CCI = ifelse(comorb.score <= 1, "0-1", ">2"),
          Sex = sex,
          Therapy = ifelse(line_of_therapy == 1,"1",">1"),
          Chemo_prior = chemo_prior)
