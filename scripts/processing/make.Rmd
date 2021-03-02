@@ -15,10 +15,24 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 fs <- list.files("R", full.names = T)
 lapply(fs, function(x) source(x))
+
 ```
 
 # Run the processing
 
 ```{r}
+drake::make(plan, verbose = 2)
 
+vis_drake_graph(plan)
 ```
+
+# Access targets
+
+```{r}
+loadd(CoRR.timing)
+# loadd(meds)
+# loadd(CoRR.form)
+# loadd(class.key)
+```
+
+# Save

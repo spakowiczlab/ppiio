@@ -4,7 +4,7 @@ pull_timing_info <- function(des.meds, meds.list, cdb){
   # test <- c("piperacillin", "amoxicillin", "vancomycin")
   
   # Get list of meds in full list that belong in each of the pre-defined classes
-  meds.members <- lapply(des.meds$medname, function(x) as.data.frame(cbind(GENERIC_NAME = unique(meds$GENERIC_NAME[grepl(x, meds$GENERIC_NAME, ignore.case = T)]),
+  meds.members <- lapply(des.meds$medname, function(x) as.data.frame(cbind(GENERIC_NAME = unique(meds.list$GENERIC_NAME[grepl(x, meds.list$GENERIC_NAME, ignore.case = T)]),
                                                                medname = x))) %>%
     bind_rows() %>%
     mutate(GENERIC_NAME = as.character(GENERIC_NAME),
@@ -21,8 +21,9 @@ pull_timing_info <- function(des.meds, meds.list, cdb){
     left_join(meds.list) %>%
     mutate(MRN = as.character(MRN), 
            START_DATE = as.Date(START_DATE)) %>%
-    select(MRN, GENERIC_NAME, START_DATE, QUANTITY, REFILLS, medname, medclass) %>%
+    select(MRN, GENERIC_NAME, START_DATE, REFILLS, medname, medclass) %>%
     inner_join(iostarts) %>%
+    filter(!is.na(START_DATE)) %>%
     mutate(REFILLS = ifelse(is.na(REFILLS), 0, REFILLS),
            # quant.num = as.numeric(str_extract("^\\d+", QUANTITY)),
            med.dur = (REFILLS+1) * 30,
@@ -37,7 +38,7 @@ pull_timing_info <- function(des.meds, meds.list, cdb){
   
   # Hold off on the by-med version for now - probably only need if we want to break down ppi and h2b further, like with ABX classes
   # time.med <- time.obj.start %>%
-  #   group_by(record_id, medname) %>%
+  #   group_by(MRN, medname) %>%
   #   summarise(alldays = paste(relative.days.covered, collapse = ","))
   # time.med.unq <- lapply(1:nrow(time.med), function(x) paste(unique(unlist(strsplit(time.med$alldays[x], split = ","))), collapse = ","))
   # time.med$alldays <- unlist(time.med.unq)
@@ -46,7 +47,7 @@ pull_timing_info <- function(des.meds, meds.list, cdb){
   #   spread(key = medname, value = alldays)
   
   time.class <- time.obj.start %>%
-    group_by(record_id, medclass) %>%
+    group_by(MRN, medclass) %>%
     summarise(alldays = paste(relative.days.covered, collapse = ","))
   time.class.unq <- lapply(1:nrow(time.class), function(x) paste(unique(unlist(strsplit(time.class$alldays[x], split = ","))), collapse = ","))
   time.class$alldays <- unlist(time.class.unq)
