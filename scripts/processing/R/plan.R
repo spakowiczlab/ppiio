@@ -34,5 +34,8 @@ plan <- drake_plan(
   
   # Focus on P188 - this is the same sort of data as CoRR, just an updated database. Format should be the same.
   P188.form = quick_format_CoRR(P188, noio, cancer.key, ionames),
-  P188.timing = pull_timing_info(class.key, meds, start.ordering.offset["Median"], P188.form)
+  P188.timing = pull_timing_info(class.key, meds, start.ordering.offset["Median"], P188.form),
+  
+  # Focus on TCC000139
+  TCC.full = ORIEN_timing_info(TCC.clin, TCC.IW, class.key)
 )
