@@ -12,5 +12,7 @@ plan <- drake_plan(
                                    medclass = c(rep("PPI", 15)))) %>%
     mutate(medname = as.character(medname),
            medclass = as.character(medclass)),
-  CoRR.timing = pull_timing_info(class.key, meds, CoRR.form)
+  
+  start.ordering.offset = check_date_difference(meds),
+  CoRR.timing = pull_timing_info(class.key, meds, start.ordering.offset["Median"], CoRR.form)
 )
