@@ -30,9 +30,8 @@ vis_drake_graph(plan)
 
 ```{r}
 loadd(CoRR.timing)
-# loadd(meds)
-# loadd(CoRR.form)
-# loadd(class.key)
+loadd(P188.timing)
+loadd(TCC.full)
 ```
 
 # Save
