@@ -9,11 +9,7 @@ plan <- drake_plan(
   meds = read_excel("T:/Labs/Spakowicz/projects/ppiio/data/raw/IW-meds/PLATELET_Variable_update.xlsx", sheet = 2, skip = 1),
   noio = readRDS("T:/Labs/Spakowicz/projects/ppiio/data/curated/NoImmunotherapy.RDS"),
   # This could also be a csv defining the important relationships, of course
-  class.key = as.data.frame(cbind(medname = c("PANTOPRAZOLE", "OMEPRAZOLE", "LANSOPRAZOLE", "DEXLANSOPRAZOLE", "RABEPRAZOLE", "ESOMEPRAZOLE", "prilosec", 
-                                              "yosprala", "prevacid", "dexilent", "aciphex", "protonix", "nexium", "vimovo", "zegerid" ),
-                                  medclass = c(rep("PPI", 15)))) %>%
-    mutate(medname = as.character(medname),
-           medclass = as.character(medclass)),
+  class.key = pull_class_assignments(),
   
   # Focus on CoRR
   cancer.key = generate_cancer_key(),

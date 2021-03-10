@@ -34,7 +34,7 @@ ORIEN_timing_info <- function(clin, IW, des.meds){
     # left_join(time.med) %>% 
     left_join(time.class)
   
-  binarize.collection <- lapply(unique(des.meds$medclass), function(x) check_timing_window(combined.obj[[paste(x, ".days.to.collection")]], c(0,0)))
+  binarize.collection <- lapply(unique(des.meds$medclass), function(x) check_timing_window(combined.obj[[paste0(x, ".days.to.collection")]], c(0,0)))
   names(binarize.collection) <- paste0(unique(des.meds$medclass), "_collection")
   
   combined.with.bin <- bind_cols(combined.obj, bind_cols(binarize.collection))
