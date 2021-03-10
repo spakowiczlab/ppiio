@@ -35,6 +35,8 @@ loadd(TCC.full)
 
 loadd(TCC.clin)
 loadd(TCC.IW)
+loadd(class.key)
 ```
+
 
 # Save

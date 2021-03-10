@@ -417,10 +417,11 @@ summary {
 </div>
 
 
-<pre class="r"><code>x &lt;- read.csv(&quot;../data/derived/slids.csv&quot;)
+<pre class="r"><code>x &lt;- read.csv(&quot;../data/derived/slids.csv&quot;) %&gt;%
+  rename(&quot;SLid&quot; = &quot;RNA.SLID&quot;)
 
 head(x)</code></pre>
-<pre><code>##   RNA.SLID
+<pre><code>##       SLid
 ## 1 SL371564
 ## 2 SL392659
 ## 3 SL372431
@@ -439,20 +440,35 @@ files</code></pre>
 ## [4] &quot;T:/Labs/Spakowicz/projects/exotic/download_urls/fastq/2021-02-22/RCC_DNAnexus_export_urls-20210222-111231.txt&quot;
 ## [5] &quot;T:/Labs/Spakowicz/projects/exotic/download_urls/fastq/2021-02-22/SAR_DNAnexus_export_urls-20210222-111320.txt&quot;
 ## [6] &quot;T:/Labs/Spakowicz/projects/exotic/download_urls/fastq/2021-02-22/THO_DNAnexus_export_urls-20210222-111418.txt&quot;</code></pre>
-<pre class="r"><code>z &lt;- lapply(files, function(x) readLines(x) %&gt;% data.frame) %&gt;%
-  bind_rows() %&gt;%
-  dplyr::rename(&quot;url&quot; = &quot;.&quot;)
+<pre class="r"><code>z &lt;- lapply(files, function(x) readLines(x) %&gt;% 
+              data.frame)
+names(z) &lt;- gsub(&quot;.*/(.*)_DNAnexus.*&quot;, &quot;\\1&quot;, files)
+for (i in 1:length(z)) {
+  z[[i]] &lt;- 
+    z[[i]] %&gt;%
+    mutate(cancer = names(z)[i])
+}
 
-dim(z)</code></pre>
-<pre><code>## [1] 962   1</code></pre>
-<p>Retrieve just the unique SLid for comparison.</p>
-<pre class="r"><code>slids &lt;- 
+id.can &lt;- 
   z %&gt;%
+  bind_rows() %&gt;%
+  dplyr::rename(&quot;url&quot; = &quot;.&quot;) %&gt;%
   mutate(SLid = gsub(&quot;http.*/(SL.*)_[1,2]\\.fastq\\.gz&quot;, &quot;\\1&quot;, url)) %&gt;%
-  select(SLid) %&gt;%
-  unique</code></pre>
-<pre class="r"><code>sum(x$RNA.SLID %in% slids$SLid)</code></pre>
-<pre><code>## [1] 480</code></pre>
+  select(-url) %&gt;%
+  filter(!duplicated(SLid))
+
+dim(id.can)</code></pre>
+<pre><code>## [1] 481   2</code></pre>
+<pre class="r"><code>comb &lt;- 
+  id.can %&gt;%
+  inner_join(x)</code></pre>
+<pre><code>## Joining, by = &quot;SLid&quot;</code></pre>
+<pre class="r"><code>dim(comb)</code></pre>
+<pre><code>## [1] 480   2</code></pre>
+<pre class="r"><code>table(comb$cancer)</code></pre>
+<pre><code>## 
+## CUT  GI  GU RCC SAR THO 
+##  16 105  20  20 118 201</code></pre>
 <p>Ok good! We have access to all of them.</p>
 
 
