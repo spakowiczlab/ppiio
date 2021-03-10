@@ -32,6 +32,9 @@ vis_drake_graph(plan)
 loadd(CoRR.timing)
 loadd(P188.timing)
 loadd(TCC.full)
+
+loadd(TCC.clin)
+loadd(TCC.IW)
 ```
 
 # Save

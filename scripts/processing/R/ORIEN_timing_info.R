@@ -27,12 +27,16 @@ ORIEN_timing_info <- function(clin, IW, des.meds){
   time.class.unq <- lapply(1:nrow(time.class), function(x) paste(unique(unlist(strsplit(time.class$alldays[x], split = ","))), collapse = ","))
   time.class$alldays <- unlist(time.class.unq)
   time.class <- time.class %>%
-    mutate(medclass = paste0(medclass, ".days.to.iostart")) %>%
+    mutate(medclass = paste0(medclass, ".days.to.collection")) %>%
     spread(key = medclass, value = alldays)
   
   combined.obj <- clin %>%
     # left_join(time.med) %>% 
     left_join(time.class)
   
-  return(combined.obj)
+  binarize.collection <- lapply(unique(des.meds$medclass), function(x) check_timing_window(combined.obj[[paste(x, ".days.to.collection")]], c(0,0)))
+  names(binarize.collection) <- paste0(unique(des.meds$medclass), "_collection")
+  
+  combined.with.bin <- bind_cols(combined.obj, bind_cols(binarize.collection))
+  return(combined.with.bin)
 }
