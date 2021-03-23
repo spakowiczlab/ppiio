@@ -38,3 +38,12 @@ loadd(TCC.full)
 
 
 # Save
+
+```{r}
+out.dir <- file.path("T:", "Labs", "Spakowicz", "projects", "ppiio", "data", "derived", Sys.Date())
+
+
+write.csv(CoRR.timing, file.path(out.dir, "CoRR4684_formatted.csv"), row.names = F)
+write.csv(P188.timing, file.path(out.dir, "P188_formatted.csv"), row.names = F)
+write.csv(TCC.full, file.path(out.dir, "TCC000138_formatted.csv"), row.names = F)
+```
