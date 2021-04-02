@@ -342,5 +342,15 @@ select(record_id,bmi) %>%
 ```
 
 
+```{r}
+orien <- read.csv("T:/Labs/Spakowicz/projects/ppiio/data/derived/2021-03-23/TCC000138_formatted.csv",
+                  stringsAsFactors = F)
+```
+
+```{r}
+table(orien$PPI_collection, orien$H2B_collection)
+
+table(orien$PPI_collection)
+```
 
 
