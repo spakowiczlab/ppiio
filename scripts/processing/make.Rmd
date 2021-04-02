@@ -24,6 +24,7 @@ lapply(fs, function(x) source(x))
 drake::make(plan, verbose = 2)
 
 vis_drake_graph(plan)
+
 ```
 
 # Access targets
@@ -33,7 +34,8 @@ loadd(CoRR.timing)
 loadd(P188.timing)
 loadd(TCC.full)
 
-# loadd(meds)
+loadd(P188)
+loadd(ionames2)
 ```
 
 

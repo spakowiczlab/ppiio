@@ -15,7 +15,7 @@ quick_format_CoRR <- function(corrdb, nio, cankey, IO.names){
     mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
     left_join(cankey) %>%
     left_join(IO.names) %>%
-    filter(immunotherapy != 11) %>%
+    filter(Immunotherapy != "Unknown") %>%
     drop_na(iostart, ppi, date, dob) %>%
     filter(!MRN %in% nio)
 }
