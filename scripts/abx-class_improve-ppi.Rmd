@@ -627,12 +627,12 @@ deidentdb2 <- db2 %>%
   left_join(db.oth.med.break) %>%
   left_join(irae_time) %>%
   left_join(ppi_dates) %>%
-  mutate(race = as.character(race),
-         vitalstatus = as.character(vitalstatus),
-         ecog = as.character(ecog),
-         comorb.score = as.character(comorb.score),
-         cancer = as.character(cancer),
-         staging = as.character(staging)) %>%
+  # mutate(race = as.character(race),
+  #        vitalstatus = as.character(vitalstatus),
+  #        ecog = as.character(ecog),
+  #        comorb.score = as.character(comorb.score),
+  #        cancer = as.character(cancer),
+  #        staging = as.character(staging)) %>%
   dplyr::select(X, race, sex, age, bmi.calc, vitalstatus, ecog, comorb.score, cancer, cancer.name, staging, abxdays.to.iostart, sterdays.to.start, ppidays.to.iostart.1, ppidays.to.iostart.2, ppidays.to.iostart.3, days)
 ```
 
