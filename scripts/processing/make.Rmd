@@ -24,15 +24,28 @@ lapply(fs, function(x) source(x))
 drake::make(plan, verbose = 2)
 
 vis_drake_graph(plan)
+
 ```
 
 # Access targets
 
 ```{r}
 loadd(CoRR.timing)
-# loadd(meds)
-# loadd(CoRR.form)
-# loadd(class.key)
+loadd(P188.timing)
+loadd(TCC.full)
+
+loadd(P188)
+loadd(ionames2)
 ```
 
+
 # Save
+
+```{r}
+out.dir <- file.path("T:", "Labs", "Spakowicz", "projects", "ppiio", "data", "derived", Sys.Date())
+
+
+write.csv(CoRR.timing, file.path(out.dir, "CoRR4684_formatted.csv"), row.names = F)
+write.csv(P188.timing, file.path(out.dir, "P188_formatted.csv"), row.names = F)
+write.csv(TCC.full, file.path(out.dir, "TCC000138_formatted.csv"), row.names = F)
+```
