@@ -15,54 +15,65 @@ library(reshape)
 
 
 ```{r}
-# source("00-paths.R")
+source("00-paths.R")
 
-# Copy into ppiio folder (create this as well as a readme; create under projects and make a data folder) in t/labs/spak/data
-# Use the paths file (which I should go back and change to only include ppi)
-  # Call phi raw and phi derived (folder to paths)
-  # Also de-identified 
-
-db_ppi <- read_xlsx("T:/Labs/Spakowicz/projects/throm/data/PLATELET_Variable_update.xlsx", 
+# PPI dates
+db_ppi <- read_xlsx(file.path(paths$med.dates, "PLATELET_Variable_update.xlsx"), 
              sheet = 2,
              skip = 1)
 
-
-db_full_phi <- read_csv("T:/Labs/Spakowicz/data/exoio/format_output.csv")
+# patient data
+db_full_phi <- read.csv(file.path(paths$exoio_raw, "format_output.csv"))
 
 ```
 
 ```{r}
+# Select for important patient data
 iostart_dates <- db_full_phi %>%
-  select(record_id, iostart, iostopdate, cancer.name, ppi 
-         # Check if these are present in nas for iostart
-         # io_2_start, io_2_stop, io_3_start, io_3_stop
+  select(record_id, iostart, iostopdate, io_2_start, io_2_stop, io_3_start, io_3_stop, cancer.name, ppi 
+         # io_2_start, io_2_stop, io_3_start, and io_3_stop complicate this
          ) %>%
   dplyr::rename(ppi.marium = ppi, MRN = record_id) %>%
-  filter(!is.na(iostart))
+  filter(!is.na(iostart)) %>%
+  mutate(iostart = as.Date(iostart),
+         iostop = as.Date(iostopdate),
+         MRN = as.character(MRN),
+         ppi.marium = as.numeric(ppi.marium),
+         io_2_start = as.Date(io_2_start),
+         io_2_stop = as.Date(io_2_stop),
+         io_3_start = as.Date(io_3_start),
+         io_3_stop = as.Date(io_3_stop)) %>%
+  select(-iostopdate)
+  
 
 ```
 
 ```{r}
-
+# Filter for important ppi dates
 db_ppi_2 <- db_ppi %>%
+  # Filter by generic ppi names
 filter(grepl(
   "PANTOPRAZOLE|OMEPRAZOLE|LANSOPRAZOLE|DEXLANSOPRAZOLE|RABEPRAZOLE|ESOMEPRAZOLE|prilosec|yosprala|prevacid|dexilent|aciphex|protonix|nexium|vimovo|zegerid", 
              GENERIC_NAME, ignore.case=TRUE)) %>%
   select(-STRENGTH, -ROUTE, -HV_DISCRETE_DOSE, -MED_DIS_DISP_QTY, -MED_DESCRIPTION) %>%
-  mutate(ORDERING_DATE = as.Date(ORDERING_DATE),
-         START_DATE = as.Date(START_DATE),
-         END_DATE = as.Date(END_DATE))
-
-
-# mutate(name_lower = tolower(GENERIC_NAME))
+  mutate(START_DATE = as.Date(START_DATE),
+         END_DATE = as.Date(END_DATE),
+         ORDERING_DATE = as.Date(ORDERING_DATE),
+         MRN = as.character(MRN))
 ```
 
 
 ```{r}
-# [Add] Fraction of patients with ppi use during io
-
+# join PPI and IO dates
 db_ppi_dates <- db_ppi_2 %>%
   left_join(iostart_dates)
+
+```
+
+```{r}
+# Just a quick look at how extra io can affect the results
+test <- db_ppi_dates %>%
+  filter(!is.na(io_2_start))
   
 ```
 
@@ -98,20 +109,30 @@ ppi.all.days <- db_ppi_dates %>%
 		   									 days.ppi.iostart.3 > 0,
 		   						   true = 1,
 		   						   false = 0)) %>%
-  filter(!is.na(iostart)) 
+  filter(!is.na(iostart)) %>%
+  mutate(days.ppi.iostart.1 = gsub(" days", "", days.ppi.iostart.1),
+         days.ppi.iostart.2 = gsub(" days", "", days.ppi.iostart.2),
+         days.ppi.iostart.3 = gsub(" days", "", days.ppi.iostart.3))
+```
+
+
+```{r}
+# Collapse all dates belonging to one MRN to one row per MRN
+ppi.collapsed.days <- ppi.all.days %>%
+  group_by(MRN) %>%
+  summarise(ppidays.to.iostart.1 = paste(days.ppi.iostart.1, collapse = ","),
+            ppidays.to.iostart.2 = paste(days.ppi.iostart.2, collapse = ","),
+            ppidays.to.iostart.3 = paste(days.ppi.iostart.3, collapse = ",")) %>%
+  mutate(record_id = MRN) %>%
+  select(-MRN)
 ```
 
 ```{r}
-
-# ppi.all.days %>%
-# ggplot(aes(x = as.numeric(pills))) +
-#   geom_histogram(bins = 100) +
-#   xlim(0, 100)
-# 
-# # hist(as.numeric(ppi.all.days$pills), xlim = c(0, 100), breaks = 100)
-
+# Save
+saveRDS(ppi.collapsed.days, file.path(paths$exoio_raw, "ppi_dates.RDS"))
 ```
 
+# Testing to determine best date formula
 ```{r}
 
 ppi.1.sum <- ppi.all.days %>%
@@ -155,29 +176,10 @@ ppi.sum <- ppi.1.sum %>%
   left_join(ppi.3.sum) %>%
   left_join(ppi.marium.sum) %>%
   left_join(cancer.MRN) %>%
-  select(-sum.marium)
+  select(-sum.marium, -sum.1, -sum.2, -sum.3)
 		   
 ```
 
-
-
-
-```{r}
-
-# # DF with MRN, Marium_ppi, all my ppi columns
-# # Test with table(DF$Marium_ppi, DF$ppi.iostart.1)
-# 
-# MRN <- unique(ppi.all.days$MRN)
-
-```
-
-```{r}
-
-# # Some subjects with ppi use are excluded because we do not have information on the timing of their medication
-# filtered_MRN <- filter(db_full_phi, record_id %in% MRN)
-
-
-```
 
 
 ```{r}
@@ -226,9 +228,6 @@ summary <- ppi.sum %>%
 
 ```
 
-
-
-
 ```{r}
 # Cut density plot
 # X axis time is what we need
@@ -275,25 +274,3 @@ ggplot(aes(x = days.ppi.iostart.3)) +
 
 
 ```
-
-
-
-
-
-
-
-
-
-# Collapse grouped by id
-```{r}
-# 
-# ppi.org.days <- ppi.all.days %>%
-#   group_by(MRN) %>%
-#   summarise(days.to.start = glue_collapse(unique(days.ppi.iostart.2), sep = ",")) %>%
-#   spread(key = "MRN", value = "days.to.start")
-# 
-
-
-```
-
-
