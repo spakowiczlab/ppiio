@@ -23,10 +23,10 @@ source("00-paths.R")
 
 corr <- read.csv(file.path(paths$derived, "CoRR4684_formatted.csv")) %>%
   select(vitalstatus, ppi, statin, immunotherapy, iostart, ppi_start, h2b_iostart, steroid_iostart, 
-         abx_iostart, nsaid_iostart, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, follow_up)
+         abx_iostart, nsaid_iostart, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, days)
 lung <- read.csv(file.path(paths$derived, "P188_formatted.csv")) %>%
   select(vitalstatus, ppi, statin, immunotherapy, iostart, ppi_start, h2b_iostart, steroid_iostart, 
-         abx_iostart, nsaid_iostart, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, follow_up)
+         abx_iostart, nsaid_iostart, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, days)
 
 db <- corr %>% rbind(lung)
 ```
@@ -40,9 +40,7 @@ check.window <- function(vect, per){
 }
 db <- db %>%
   mutate(PPI.to.iostart = paste(",", PPI.days.to.iostart, ",", sep = ""),
-         H2B.to.iostart = paste(",", H2B.days.to.iostart, ",", sep = ""),
-         ppi_start = check.window(PPI.days.to.iostart, c(-28,28)),
-         iostart = check.window(H2B.days.to.iostart, c(-28,28)))
+         ppi_start = check.window(PPI.days.to.iostart, c(-28,28)))
 ```
 
 
@@ -56,18 +54,18 @@ allcancers <- c('Other', 'Melanoma', 'Non-Small Cell Lung Cancer', 'Head and Nec
 ```{r create survival plots}
 forms <- list()
 for(var in meds_iostart){
-  forms[[var]] <- as.formula(paste("Surv(follow_up, vitalstatus) ~ ", var, sep = ""))
+  forms[[var]] <- as.formula(paste("Surv(days, vitalstatus) ~ ", var, sep = ""))
 }
 sfits <- surv_fit(formula = forms, data = db)
 names(sfits) <- meds_iostart
 almeds.plots <- ggsurvplot(sfits, pval = TRUE, conf.int = FALSE, 
                            risk.table = TRUE,title = "", legend.title = "", 
-                           legend.labs = list(c("Not prescribed", "Prescribed")), 
+                           legend.labs = list(c("Not prescribed", "Prescribed H2B's")), 
                            ylab = "", xlab = "Days", palette = c("slateblue2", "lightsalmon2"), 
                            fontsize = 6, font.legend = list(size = 12))
 ```
 
-```{r fig.height=7, fig.width=10}
+```{r fig.height=6, fig.width=6}
 almeds.plots[["ppi"]]
 almeds.plots[["h2b_iostart"]]
 ```
