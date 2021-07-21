@@ -24,7 +24,11 @@ library(UpSetR)
 # Select source
 source("00-paths.R")
 # Load in data frame
-db <- readRDS(file.path(paths$ppiio_derived, "deidentdb_timing.RDS"))
+db <- readRDS(file.path(paths$ppiio_derived, "deidentdb_timing.RDS")) %>%
+  # Use the third ppi date calculation
+  mutate(ppidays.to.iostart = ppidays.to.iostart.3) %>%
+  select(-ppidays.to.iostart.1, -ppidays.to.iostart.2, -ppidays.to.iostart.3)
+  
 ```
 
 # Prepare data frame for analysis
