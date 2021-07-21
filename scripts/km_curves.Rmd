@@ -1,5 +1,5 @@
 ---
-title: "ppiio KM curve"
+title: "ppiio KM curves"
 author: "Caroline Wheeler"
 date: "7/21/2021"
 output: html_document
@@ -16,21 +16,49 @@ library(forcats)
 library(UpSetR)
 ```
 
-```{r load data}
-clin <- read_csv("/fs/ess/PAS1695/projects/ppiio/data/clinical_TCC000138_formatted.csv", na = ".") %>%
-  rename(days = "Days_Btwn-Collect_and_LastFUp/Death") %>%
-  mutate(Vital_Status = ifelse(Vital_Status == "Alive", 0, 1))
+read in data
+```{r}
+setwd(dirname(getwd()))
+source("00-paths.R")
+
+corr <- read.csv(file.path(paths$derived, "CoRR4684_formatted.csv")) %>%
+  select(vitalstatus, ppi, statin, immunotherapy, iostart, ppi_start, h2b_iostart, steroid_iostart, 
+         abx_iostart, nsaid_iostart, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, follow_up)
+lung <- read.csv(file.path(paths$derived, "P188_formatted.csv")) %>%
+  select(vitalstatus, ppi, statin, immunotherapy, iostart, ppi_start, h2b_iostart, steroid_iostart, 
+         abx_iostart, nsaid_iostart, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, follow_up)
+
+db <- corr %>% rbind(lung)
 ```
 
 ```{r}
-meds_iostart = c("H2B_collection", "PPI_collection")
+check.window <- function(vect, per){
+  wind <- per[1]:per[2]
+  wind <- glue_collapse(as.character(wind), sep = ",|,")
+  wind <- paste(",", wind, ",", sep = "")
+  ifelse(grepl(pattern = wind, x = vect), 1, 0)
+}
+db <- db %>%
+  mutate(PPI.to.iostart = paste(",", PPI.days.to.iostart, ",", sep = ""),
+         H2B.to.iostart = paste(",", H2B.days.to.iostart, ",", sep = ""),
+         ppi_start = check.window(PPI.days.to.iostart, c(-28,28)),
+         iostart = check.window(H2B.days.to.iostart, c(-28,28)))
+```
 
+
+```{r define interesting columns}
+meds_iostart <- c("h2b_iostart", "nsaid_iostart", "ppi", "statin", "steroid_iostart", "abx_iostart")
+allcancers <- c('Other', 'Melanoma', 'Non-Small Cell Lung Cancer', 'Head and Neck Carcinoma', 'Renal Cell Carcinoma', 'Sarcoma', 'Bladder Cancer')
+```
+
+# A+B) Survival curves of each medication at iostart
+
+```{r create survival plots}
 forms <- list()
 for(var in meds_iostart){
-  forms[[var]] <- as.formula(paste("Surv(days, Vital_Status) ~ ", var, sep = ""))
+  forms[[var]] <- as.formula(paste("Surv(follow_up, vitalstatus) ~ ", var, sep = ""))
 }
-
-sfits <- surv_fit(formula = forms, data = clin)
+sfits <- surv_fit(formula = forms, data = db)
 names(sfits) <- meds_iostart
 almeds.plots <- ggsurvplot(sfits, pval = TRUE, conf.int = FALSE, 
                            risk.table = TRUE,title = "", legend.title = "", 
@@ -39,9 +67,187 @@ almeds.plots <- ggsurvplot(sfits, pval = TRUE, conf.int = FALSE,
                            fontsize = 6, font.legend = list(size = 12))
 ```
 
-```{r fig.height=6, fig.width=9}
-almeds.plots[["PPI_collection"]]
-almeds.plots[["H2B_collection"]]
+```{r fig.height=7, fig.width=10}
+almeds.plots[["ppi"]]
+almeds.plots[["h2b_iostart"]]
+```
+
+
+# C) Heatmap of values when split by cancer
+
+```{r retain full cohort info for heatmap}
+almeds.pval <- lapply(sfits, function (x) surv_pvalue(x)[1,2])
+names(almeds.pval) <- names(sfits)
+almeds.hr <- lapply(forms, function(x)  coefficients(summary(coxph(formula = x, data = db)))[,2])
+almeds.pval <- bind_rows(almeds.pval)
+almeds.hr <- bind_rows(almeds.hr)
+almeds.dat <- as.data.frame(bind_rows(almeds.pval, almeds.hr))
+rownames(almeds.dat) <- c("p.value", "hazrat")
+almeds.dat <- almeds.dat %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "meds") %>%
+  mutate(labcol = ifelse(hazrat < 1, "red", "black"),
+         cancer = "All",) %>%
+  select(cancer, meds, p.value, labcol)
+  
+```
+
+```{r, message=FALSE, warning=FALSE}
+curvesbycancer <- list()
+sfits <- list()
+pvalbycancer <- list()
+pvals <- list()
+hrbycanc <- list()
+hazrat <- list()
+labcol <- list()
+labs <- list()
+canccox <- list()
+coxmods <- list()
+for(c in allcancers){
+  
+  tmp <- subset(db, db$cancer.name == c)
+  
+  for(s in meds_iostart){
+    
+    f <- as.formula(paste("Surv(days, vitalstatus) ~ ", s, sep = ""))
+    
+    try ({
+      sfits[[s]] <- surv_fit(formula = f, data = tmp)
+      pvals[[s]] <- surv_pvalue(sfits[[s]])[1,2]
+      
+      x <- coefficients(summary(coxph(formula = f, data = tmp)))[,2]
+      labs[[s]] <- ifelse(x < 1, "red", "black")
+      
+      coxmods[[s]] <- coxph(f, tmp) %>%
+        broom::tidy() %>%
+        mutate(cancer = c,
+               estimate = exp(estimate),
+               conf.low = exp(conf.low),
+               conf.high = exp(conf.high))
+      
+    })
+  }
+  
+  curvesbycancer[[c]] <- sfits
+  pvalbycancer[[c]] <- pvals
+  labcol[[c]] <- labs
+  canccox[[c]] <- bind_rows(coxmods)
+  
+  sfits <- list()
+  pvals <- list()
+  labs <- list()
+  coxmods <- list()
+}
+allcancpvals <- bind_rows(pvalbycancer)
+rownames(allcancpvals) <- names(pvalbycancer)
+labcol <- bind_rows(labcol) 
+rownames(labcol) <- names(pvalbycancer)
+```
+
+```{r}
+labcol <- labcol %>%
+  rownames_to_column(var = "cancer") %>%
+  gather(key = "meds", value = "labcol", -cancer) %>%
+  mutate(labcol = ifelse(is.na(labcol), "black", labcol))
+heat.data <- as.data.frame(allcancpvals)  %>%
+  rownames_to_column(var = "cancer") %>%
+  gather(key = "meds", value = "p.value", -cancer) %>%
+  full_join(labcol)
+```
+
+```{r}
+heat.data <- bind_rows(almeds.dat, heat.data)
+```
+
+```{r}
+heat.plot <- heat.data %>%
+  ggplot(aes(meds, fct_relevel(cancer, "Other", "Bladder Cancer", "Head and Neck Carcinoma"
+                               , "Melanoma", "Non-Small Cell Lung Cancer", "Renal Cell Carcinoma", 
+                               "Sarcoma", "All"))) +
+  geom_tile(aes(fill = p.value)) +
+  labs(x = "", y = "") +
+  geom_point(aes(shape = labcol), size = 5) +
+  scale_fill_distiller(guide = "legend", breaks = c(0.000000000001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.5, 1), 
+                       limits = c(0, 1), values = c(0.000000000001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.5, 1),
+                       type = "div", palette = "RdBu", direction = 1, 
+                       labels = c("<0.01", "0.01", "0.02","0.03", "0.04","0.05","0.1", "0.2", "0.5", "1")) +
+  scale_shape_manual(breaks = c("black", "red"), values = c("-", "+"), 
+                     labels = c("HR>1", "HR<1"), name = "Direction") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_x_discrete(breaks = meds_iostart, 
+                   labels = c("H2B", "NSAIDs", "PPI", "Statins", "CS", "ABx")) +
+  scale_y_discrete(breaks = c("Other", "Bladder Cancer", "Head and Neck Carcinoma", "Melanoma",
+                              "Non-Small Cell Lung Cancer", "Renal Cell Carcinoma", "Sarcoma", "All"), 
+                   labels = c("Other", "Bladder Cancer", "Head and Neck\nCarcinoma", "Melanoma", 
+                              "Non-Small Cell\nLung Cancer", "Renal Cell\nCarcinoma", "Sarcoma", "All"))
+heat.plot
+```
+
+## Table of ABx hazard ratios
+```{r}
+all.hr <- coxph(Surv(days, vitalstatus) ~ abx.28.28, db) %>%
+        broom::tidy() %>%
+        mutate(cancer = "All cancers",
+               estimate = exp(estimate),
+               conf.low = exp(conf.low),
+               conf.high = exp(conf.high))
+bind_rows(bind_rows(canccox), all.hr) %>%
+  filter(term == "abx.28.28") %>%
+  select(cancer, estimate, conf.low, conf.high, p.value) %>%
+  knitr::kable()
+```
+
+# Table of ABx sample sizes
+
+```{r}
+all.ns <- db %>%
+  group_by(abx.28.28) %>%
+  tally() %>%
+  mutate(cancer.name = "All cancers", 
+         abx.28.28 = ifelse(abx.28.28 == 0, "No.ABx", "ABx")) %>%
+  spread(key = abx.28.28, value = n)
+split.cancer.ns <- db %>%
+  group_by(cancer.name, abx.28.28) %>%
+  tally() %>%
+  mutate(abx.28.28 = ifelse(abx.28.28 == 0, "No.ABx", "ABx")) %>%
+  spread(key = abx.28.28, value = n)
+bind_rows(all.ns, split.cancer.ns) %>%
+  knitr::kable()
+```
+
+# PPI additional information
+
+## ns
+```{r}
+all.ns <- db %>%
+  group_by(ppi) %>%
+  tally() %>%
+  mutate(cancer.name = "All cancers", 
+         ppi = ifelse(ppi == 0, "No.PPI", "PPI")) %>%
+  spread(key = ppi, value = n)
+split.cancer.ns <- db %>%
+  group_by(cancer.name, ppi) %>%
+  tally() %>%
+  mutate(ppi = ifelse(ppi == 0, "No.PPI", "PPI")) %>%
+  spread(key = ppi, value = n)
+bind_rows(all.ns, split.cancer.ns) %>%
+  knitr::kable()
+```
+## Cox Proportional Hazards results
+
+```{r}
+all.hr <- coxph(Surv(days, vitalstatus) ~ ppi, db) %>%
+        broom::tidy() %>%
+        mutate(cancer = "All cancers",
+               estimate = exp(estimate),
+               conf.low = exp(conf.low),
+               conf.high = exp(conf.high))
+bind_rows(bind_rows(canccox), all.hr) %>%
+  filter(term == "ppi") %>%
+  select(cancer, estimate, conf.low, conf.high, p.value) %>%
+  knitr::kable()
 ```
 
 
