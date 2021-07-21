@@ -1,0 +1,47 @@
+---
+title: "ppiio KM curve"
+author: "Caroline Wheeler"
+date: "7/21/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(survival)
+library(survminer)
+library(glue)
+library(RColorBrewer)
+library(forcats)
+library(UpSetR)
+```
+
+```{r load data}
+clin <- read_csv("/fs/ess/PAS1695/projects/ppiio/data/clinical_TCC000138_formatted.csv", na = ".") %>%
+  rename(days = "Days_Btwn-Collect_and_LastFUp/Death") %>%
+  mutate(Vital_Status = ifelse(Vital_Status == "Alive", 0, 1))
+```
+
+```{r}
+meds_iostart = c("H2B_collection", "PPI_collection")
+
+forms <- list()
+for(var in meds_iostart){
+  forms[[var]] <- as.formula(paste("Surv(days, Vital_Status) ~ ", var, sep = ""))
+}
+
+sfits <- surv_fit(formula = forms, data = clin)
+names(sfits) <- meds_iostart
+almeds.plots <- ggsurvplot(sfits, pval = TRUE, conf.int = FALSE, 
+                           risk.table = TRUE,title = "", legend.title = "", 
+                           legend.labs = list(c("Not prescribed", "Prescribed")), 
+                           ylab = "", xlab = "Days", palette = c("slateblue2", "lightsalmon2"), 
+                           fontsize = 6, font.legend = list(size = 12))
+```
+
+```{r fig.height=6, fig.width=9}
+almeds.plots[["PPI_collection"]]
+almeds.plots[["H2B_collection"]]
+```
+
+
