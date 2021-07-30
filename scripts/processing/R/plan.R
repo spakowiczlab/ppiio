@@ -1,13 +1,13 @@
 plan <- drake_plan(
   # Load all starting files
-  CoRR = read.csv("T:/Labs/Spakowicz/projects/ppiio/data/raw/CoRR4684/2021-03-22/CoRR4684ARetrospecti_DATA_2021-03-22_2307.csv", 
+  CoRR = read.csv("T:/Labs/Spakowicz/ppiio/data/raw/CoRR4684/2021-03-22/CoRR4684ARetrospecti_DATA_2021-03-22_2307.csv", 
                   stringsAsFactors = F),
-  P188 = read.csv("T:/Labs/Spakowicz/projects/ppiio/data/raw/P188/2021-03-22/P188NSCLCIOTox111611_DATA_2021-03-22_2305.csv",
+  P188 = read.csv("T:/Labs/Spakowicz/ppiio/data/raw/P188/2021-03-22/P188NSCLCIOTox111611_DATA_2021-03-22_2305.csv",
                   stringsAsFactors = F),
-  TCC.clin = read_excel("T:/Labs/Spakowicz/projects/ppiio/data/raw/TCC000139/TCC000139-SPAK_ClinicalDataPoints_withSLIDS.xlsx"),
-  TCC.IW = read_excel("T:/Labs/Spakowicz/projects/ppiio/data/raw/TCC000139/TCC000139-SPAK_MedicationLogFile_withSLIDS.xlsx"),
-  meds = read_excel("T:/Labs/Spakowicz/projects/ppiio/data/raw/IW-meds/PLATELET_Variable_update.xlsx", sheet = 2, skip = 1),
-  noio = readRDS("T:/Labs/Spakowicz/projects/ppiio/data/curated/NoImmunotherapy.RDS"),
+  TCC.clin = read_excel("T:/Labs/Spakowicz/ppiio/data/raw/TCC000139/TCC000139-SPAK_ClinicalDataPoints_withSLIDS.xlsx"),
+  TCC.IW = read_excel("T:/Labs/Spakowicz/ppiio/data/raw/TCC000139/TCC000139-SPAK_MedicationLogFile_withSLIDS.xlsx"),
+  meds = read_excel("T:/Labs/Spakowicz/ppiio/data/raw/IW-meds/PLATELET_Variable_update.xlsx", sheet = 2, skip = 1),
+  noio = readRDS("T:/Labs/Spakowicz/ppiio/data/curated/NoImmunotherapy.RDS"),
   # This could also be a csv defining the important relationships, of course
   class.key = pull_class_assignments(),
   
@@ -43,5 +43,8 @@ plan <- drake_plan(
   P188.timing = pull_timing_info(class.key, meds, start.ordering.offset["Median"], P188.form),
   
   # Focus on TCC000139
-  TCC.full = ORIEN_timing_info(TCC.clin, TCC.IW, class.key)
+  TCC.full = ORIEN_timing_info(TCC.clin, TCC.IW, class.key),
+  
+  # Combine CoRR and P188, removing duplicate patients
+  DO.combined = combine_DO_dbs(CoRR.timing, P188.timing)
 )
