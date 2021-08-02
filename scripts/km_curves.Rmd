@@ -21,14 +21,9 @@ read in data
 setwd(dirname(getwd()))
 source("00-paths.R")
 
-corr <- read.csv(file.path(paths$derived, "CoRR4684_formatted.csv")) %>%
+db <- read.csv(file.path(paths$derived, "CombinedDO_formatted.csv")) %>%
   select(vitalstatus, ppi, statin, immunotherapy, iostart, ppi_start, h2b_iostart, steroid_iostart, 
          abx_iostart, nsaid_iostart, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, days)
-lung <- read.csv(file.path(paths$derived, "P188_formatted.csv")) %>%
-  select(vitalstatus, ppi, statin, immunotherapy, iostart, ppi_start, h2b_iostart, steroid_iostart, 
-         abx_iostart, nsaid_iostart, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, days)
-
-db <- corr %>% rbind(lung)
 ```
 
 ```{r}
@@ -38,6 +33,7 @@ check.window <- function(vect, per){
   wind <- paste(",", wind, ",", sep = "")
   ifelse(grepl(pattern = wind, x = vect), 1, 0)
 }
+
 db <- db %>%
   mutate(PPI.to.iostart = paste(",", PPI.days.to.iostart, ",", sep = ""),
          ppi_start = check.window(PPI.days.to.iostart, c(-28,28)))

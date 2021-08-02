@@ -1,0 +1,91 @@
+---
+title: "hazard ratio"
+author: "Caroline Wheeler"
+date: "8/2/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(glue)
+library(survival)
+library(broom)
+
+setwd(dirname(getwd()))
+source("00-paths.R")
+```
+
+read in data
+```{r}
+db <- read.csv(file.path(paths$derived, "CombinedDO_formatted.csv")) %>%
+  dplyr::select(H2B.days.to.iostart, PPI.days.to.iostart)
+
+```
+
+# Hazard ratio overtime
+
+```{r}
+check.window <- function(vect, per){
+  wind <- per[1]:per[2]
+  wind <- glue_collapse(as.character(wind), sep = ",|,")
+  wind <- paste(",", wind, ",", sep = "")
+  ifelse(grepl(pattern = wind, x = vect), 1, 0)
+}
+```
+
+```{r}
+db <- db %>%
+  mutate(ppi.180.180 = check.window(paste(",", PPI.days.to.iostart, ",", sep = ""), c(-180,180))) %>%
+  mutate(h2b.180.180 = check.window(paste(",", H2B.days.to.iostart, ",", sep = ""), c(-180,180)))
+```
+
+PPI's
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+ppifloattime <- db %>%
+  select(days, vitalstatus, PPI.days.to.iostart) %>%
+  mutate(PPI.days.to.iostart = paste(",", PPI.days.to.iostart, ",", sep = ""))
+ppi.zero.cohort <- db %>%
+  select(days, vitalstatus, ppi.180.180) %>%
+  filter(ppi.180.180 == 0) %>%
+  mutate(tmp = ppi.180.180) %>%
+  select(days, vitalstatus, tmp)
+leftanchor <-c(-180:151)
+ppiwindresults <- list()
+i <- 1
+ppifloattime$tmp2 <- check.window(ppifloattime$PPI.days.to.iostart, c(leftanchor[i], leftanchor[i]+29))
+  
+# for(i in 1:length(leftanchor)){
+#   j <- leftanchor[i]
+#   ppifloattime$tmp <- check.window(ppifloattime$PPI.days.to.iostart, c(j, j+29))
+#   
+#   ppifloattime <- ppifloattime %>%
+#     mutate(tmp3 = tmp2 -tmp) %>%
+#     filter(tmp3 == 0 | tmp3 == -1) %>%
+#     mutate(tmp2 = tmp)
+#   
+#   ppifloatforsurv <- ppifloattime %>%
+#     filter(tmp == 1) %>%
+#     bind_rows(ppi.zero.cohort)
+#   
+#   try({
+#   survtemp <- coxph(Surv(days, vitalstatus) ~ tmp, data = ppifloatforsurv)
+#   ppiwindresults[[i]] <- survtemp %>%
+#     tidy() %>%
+#     mutate(hazard.ratio = exp(estimate),
+#            low.bound = exp(conf.low),
+#            upper.bound = exp(conf.high), 
+#            windpval = p.value,
+#            leftanchor = j) %>%
+#     select(hazard.ratio, low.bound, upper.bound, windpval, leftanchor)
+#   })
+#   
+# }
+# abxpvaltime <- bind_rows(abxwindresults)
+# abxpvaltime$leftanchor <- abxpvaltime$leftanchor + 15
+```
+
+H2B's
+
+
