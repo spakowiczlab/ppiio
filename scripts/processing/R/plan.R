@@ -1,8 +1,8 @@
 plan <- drake_plan(
   # Load all starting files
-  CoRR = read.csv("T:/Labs/Spakowicz/ppiio/data/raw/CoRR4684/2021-03-22/CoRR4684ARetrospecti_DATA_2021-03-22_2307.csv", 
+  CoRR = read.csv("T:/Labs/Spakowicz/ppiio/data/raw/CoRR4684/2021-08-23/CoRR4684ARetrospecti_DATA_2021-08-23_2328.csv", 
                   stringsAsFactors = F),
-  P188 = read.csv("T:/Labs/Spakowicz/ppiio/data/raw/P188/2021-03-22/P188NSCLCIOTox111611_DATA_2021-03-22_2305.csv",
+  P188 = read.csv("T:/Labs/Spakowicz/ppiio/data/raw/P188/2021-08-23/P188NSCLCIOTox111611_DATA_2021-08-23_2326.csv",
                   stringsAsFactors = F),
   TCC.clin = read_excel("T:/Labs/Spakowicz/ppiio/data/raw/TCC000139/TCC000139-SPAK_ClinicalDataPoints_withSLIDS.xlsx"),
   TCC.IW = read_excel("T:/Labs/Spakowicz/ppiio/data/raw/TCC000139/TCC000139-SPAK_MedicationLogFile_withSLIDS.xlsx"),
