@@ -39,7 +39,7 @@ db <- db %>%
          ppi_start = check.window(PPI.days.to.iostart, c(-28,28)))
 
 db <- db %>% 
-  mutate(h2b_iostart = paste(",", H2B.days.to.iostart, ",", sep = ""),
+  mutate(H2B.to.iostart = paste(",", H2B.days.to.iostart, ",", sep = ""),
          h2b_start = check.window(H2B.days.to.iostart, c(-28,28)))
 ```
 
@@ -47,11 +47,10 @@ db <- db %>%
 ```{r define interesting columns}
 meds_iostart <- c("h2b_iostart", "nsaid_iostart", "ppi", "statin", "steroid_iostart", "abx_iostart")
 
-allcancers <- c('Other', 'Melanoma', 'Non-Small Cell Lung Cancer', 'Head and Neck Carcinoma', 'Renal Cell Carcinoma', 'Sarcoma', 'Bladder Cancer', "Small Cell Lun Cancer", "Hodgkin Lymphoma", "Colon Cancer", "Prostate", "Pancreatic Cancer", "Merkel Cell Carcinoma", "Breast Cancer")
+allcancers <- c('Other', 'Melanoma', 'Non-small cell lung cancer', 'Renal cell carcinoma', 'Sarcoma', 'Bladder cancer', "Small cell lung cancer", "Hodgkin lymphoma", "Colon cancer", "Prostate", "Pancreatic cancer", "Cerkel cell carcinoma", "Breast cancer", "Head and neck carcinoma")
 ```
 
 # A+B) Survival curves of each medication at iostart
-
 ```{r create survival plots}
 forms <- list()
 for(var in meds_iostart){
@@ -59,14 +58,31 @@ for(var in meds_iostart){
 }
 sfits <- surv_fit(formula = forms, data = db)
 names(sfits) <- meds_iostart
-almeds.plots <- ggsurvplot(sfits, pval = TRUE, conf.int = FALSE, 
-                           risk.table = TRUE,title = "", legend.title = "", 
-                           legend.labs = list(c("Not prescribed", "Prescribed PPI's")), 
-                           ylab = "", xlab = "Days", palette = c("slateblue2", "lightsalmon2"), 
-                           fontsize = 6, font.legend = list(size = 12))
+
+almeds.plots <- ggsurvplot(sfits,
+                           data = db,
+                           pval = TRUE, 
+                           conf.int = FALSE, 
+                           risk.table = TRUE,
+                           title = "Association of H2B with OS in all cancers", 
+                           legend.title = "", 
+                           legend.labs = list(c("Not prescribed", "Prescribed H2B's")),
+                           xscale = "d_m",
+                           break.time.by=365.25*2,
+                           ylab = "Survival probability", 
+                           xlab = "Months", 
+                           palette = c("slateblue2", "lightsalmon2"), 
+                           fontsize = 6, 
+                           font.legend = list(size = 12))
 ```
 
 ```{r fig.height=6, fig.width=6}
 almeds.plots[["ppi"]]
 almeds.plots[["h2b_iostart"]]
 ```
+
+save plots
+```{r}
+
+```
+
