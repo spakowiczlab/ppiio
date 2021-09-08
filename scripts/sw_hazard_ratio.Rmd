@@ -27,8 +27,15 @@ read in data
 db <- read.csv(file.path(paths$derived, "CombinedDO_formatted.csv")) 
 ```
 
-# Hazard ratio overtime
+```{r}
+ppiclasses <- c("1", "2", "3", "4", "5", "6")
 
+orgtype <- c()
+
+allcancers <- c('Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma', 'Sarcoma', 'bladder cancer', "small cell lung cancer", "Hodgkin lymphoma", "colon cancer", "Prostate", "pancreatic cancer", "merkel cell carcinoma", "breast cancer", "head and neck carcinoma")
+```
+
+# Hazard ratio overtime
 ```{r}
 check.window <- function(vect, per){
   wind <- per[1]:per[2]
@@ -101,7 +108,7 @@ ppipvaltime$leftanchor <- ppipvaltime$leftanchor + 15
 ```
 
 H2B's
-```{r}
+```{r, message=FALSE, error=FALSE, warning=FALSE}
 h2bfloattime <- db %>%
   select(days, vitalstatus, H2B.days.to.iostart) %>%
   mutate(H2B.days.to.iostart = paste(",", H2B.days.to.iostart, ",", sep = ""))
@@ -169,6 +176,22 @@ ggplot(data = allpvaltime, aes(x = leftanchor, y = hazard.ratio)) +
                      values = c("darkred", "darkblue"), name = "Drug") +
   labs(title = "", x = "Days relative to ICI start",y = "Hazard Ratio" ) +
   theme_bw() + 
-  theme(axis.text = element_text(size = 12), axis.title = element_text(size = 15)) 
+  theme(axis.text = element_text(size = 12), axis.title = element_text(size = 15))
+```
+
+# Heat maps
+
+## Create window columns:
+```{r}
+statesofinterest <- c(ppiclasses, as.character(sterkey$Generic.ID))
+edges <- c(-28,28)
+db.heat <- db %>%
+  select(days, cancer.name, vitalstatus, one_of(paste(statesofinterest, ".to.start", sep = "")))
+for(s in statesofinterest){
+  db.heat[[paste(s, ".to.start", sep = "")]] <- paste(",", db.heat[[paste(s, ".to.start", sep = "")]], ",", 
+                                                      sep = "") 
+  db.heat[[s]] <- check.window(db.heat[[paste(s, ".to.start", sep = "")]], edges)
+}
+
 ```
 
