@@ -82,17 +82,6 @@ almeds.plots[["ppi"]]
 almeds.plots[["h2b_iostart"]]
 ```
 
-save plots
-```{r}
-
-```
-
-Heat map
-```{r}
-
-```
-
-
 
 
 Heat map
@@ -181,7 +170,7 @@ heat.data <- as.data.frame(allcancpvals)  %>%
 heat.data <- bind_rows(almeds.dat, heat.data)
 ```
 
-```{r}
+```{r fig.height=8, fig.width=6}
 heat.plot <- heat.data %>%
   ggplot(aes(meds, fct_relevel(cancer, 'Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma', 'Sarcoma', 'bladder cancer', "small cell lung cancer", "Hodgkin lymphoma", "colon cancer", "Prostate", "pancreatic cancer", "merkel cell carcinoma", "breast cancer", "head and neck carcinoma", "All"))) +
   geom_tile(aes(fill = p.value)) +
