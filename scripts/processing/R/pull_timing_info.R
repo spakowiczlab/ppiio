@@ -52,6 +52,7 @@ pull_timing_info <- function(des.meds, meds.list, ord.offset, cdb){
   time.class <- time.obj.start %>%
     group_by(MRN, medclass) %>%
     summarise(alldays = paste(relative.days.covered, collapse = ","))
+  #Remove duplicate days
   time.class.unq <- lapply(1:nrow(time.class), function(x) paste(unique(unlist(strsplit(time.class$alldays[x], split = ","))), collapse = ","))
   time.class$alldays <- unlist(time.class.unq)
   time.class <- time.class %>%
