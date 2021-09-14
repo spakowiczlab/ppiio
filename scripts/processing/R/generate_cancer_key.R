@@ -26,6 +26,12 @@ generate_cancer_key <- function(){
       cancer.name = cancer.copy %>%
         gsub("\\d+ (.*)", "\\1", .),
       stringsAsFactors = FALSE
-    )
+    ) %>%
+    mutate(cancer.aggregated = ifelse(cancer.name %in% c("non-small cell lung cancer",
+                                                         "melanoma",
+                                                         "renal cell carcinoma",
+                                                         "head and neck carcinoma"), 
+                                      cancer.name,
+                                      "Other"))
   return(cancer.key)
 }
