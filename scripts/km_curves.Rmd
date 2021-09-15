@@ -23,7 +23,7 @@ source("00-paths.R")
 
 db <- read.csv(file.path(paths$derived, "CombinedDO_formatted.csv")) %>%
   select(vitalstatus, ppi, statin, immunotherapy, iostart, ppi_start, h2b_iostart, steroid_iostart, 
-         abx_iostart, nsaid_iostart, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, days)
+         abx_iostart, nsaid_iostart, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, days, cancer.aggregated)
 ```
 
 
@@ -48,7 +48,7 @@ db <- db %>%
 ```{r define interesting columns}
 meds_iostart <- c("h2b_iostart", "nsaid_iostart", "ppi", "statin", "steroid_iostart", "abx_iostart")
 
-allcancers <- c('Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma', 'Sarcoma', 'bladder cancer', "small cell lung cancer", "Hodgkin lymphoma", "colon cancer", "Prostate", "pancreatic cancer", "merkel cell carcinoma", "breast cancer", "head and neck carcinoma")
+allcancers <- c('Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma',"head and neck carcinoma")
 ```
 
 # A+B) Survival curves of each medication at iostart
@@ -116,7 +116,7 @@ canccox <- list()
 coxmods <- list()
 for(c in allcancers){
   
-  tmp <- subset(db, db$cancer.name == c)
+  tmp <- subset(db, db$cancer.aggregated == c)
   
   for(s in meds_iostart){
     
@@ -170,9 +170,9 @@ heat.data <- as.data.frame(allcancpvals)  %>%
 heat.data <- bind_rows(almeds.dat, heat.data)
 ```
 
-```{r fig.height=8, fig.width=6}
+```{r fig.height=7, fig.width=6}
 heat.plot <- heat.data %>%
-  ggplot(aes(meds, fct_relevel(cancer, 'Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma', 'Sarcoma', 'bladder cancer', "small cell lung cancer", "Hodgkin lymphoma", "colon cancer", "Prostate", "pancreatic cancer", "merkel cell carcinoma", "breast cancer", "head and neck carcinoma", "All"))) +
+  ggplot(aes(meds, fct_relevel(cancer, 'Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma', "head and neck carcinoma", "All"))) +
   geom_tile(aes(fill = p.value)) +
   labs(x = "", y = "") +
   geom_point(aes(shape = labcol), size = 5) +
@@ -186,8 +186,8 @@ heat.plot <- heat.data %>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_x_discrete(breaks = meds_iostart, 
                    labels = c("H2B", "NSAIDs", "PPI", "Statins", "CS", "ABx")) +
-  scale_y_discrete(breaks = c('Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma', 'Sarcoma', 'bladder cancer', "small cell lung cancer", "Hodgkin lymphoma", "colon cancer", "Prostate", "pancreatic cancer", "merkel cell carcinoma", "breast cancer", "head and neck carcinoma", "All"), 
-                   labels = c('Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma', 'Sarcoma', 'bladder cancer', "small cell lung cancer", "Hodgkin lymphoma", "colon cancer", "Prostate", "pancreatic cancer", "merkel cell carcinoma", "breast cancer", "head and neck carcinoma", "All"))
+  scale_y_discrete(breaks = c('Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma', "head and neck carcinoma", "All"), 
+                   labels = c('Other', 'Melanoma', 'Non-small cell lung cancer', 'Renal cell carcinoma',"Head and neck carcinoma", "All"))
 heat.plot
 ```
 

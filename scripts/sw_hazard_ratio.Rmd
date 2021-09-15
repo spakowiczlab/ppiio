@@ -27,14 +27,6 @@ read in data
 db <- read.csv(file.path(paths$derived, "CombinedDO_formatted.csv")) 
 ```
 
-```{r}
-ppiclasses <- c("1", "2", "3", "4", "5", "6")
-
-orgtype <- c()
-
-allcancers <- c('Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma', 'Sarcoma', 'bladder cancer', "small cell lung cancer", "Hodgkin lymphoma", "colon cancer", "Prostate", "pancreatic cancer", "merkel cell carcinoma", "breast cancer", "head and neck carcinoma")
-```
-
 # Hazard ratio overtime
 ```{r}
 check.window <- function(vect, per){
@@ -164,7 +156,7 @@ h2bpvaltime$leftanchor <- h2bpvaltime$leftanchor + 15
 ```
 
 # Combine + plot results
-```{r}
+```{r fig.height=8, fig.width=10}
 ppipvaltime$source <- "PPI"
 h2bpvaltime$source <- "H2B"
 allpvaltime <- bind_rows(ppipvaltime, h2bpvaltime)
@@ -178,20 +170,3 @@ ggplot(data = allpvaltime, aes(x = leftanchor, y = hazard.ratio)) +
   theme_bw() + 
   theme(axis.text = element_text(size = 12), axis.title = element_text(size = 15))
 ```
-
-# Heat maps
-
-## Create window columns:
-```{r}
-statesofinterest <- c(ppiclasses, as.character(sterkey$Generic.ID))
-edges <- c(-28,28)
-db.heat <- db %>%
-  select(days, cancer.name, vitalstatus, one_of(paste(statesofinterest, ".to.start", sep = "")))
-for(s in statesofinterest){
-  db.heat[[paste(s, ".to.start", sep = "")]] <- paste(",", db.heat[[paste(s, ".to.start", sep = "")]], ",", 
-                                                      sep = "") 
-  db.heat[[s]] <- check.window(db.heat[[paste(s, ".to.start", sep = "")]], edges)
-}
-
-```
-
