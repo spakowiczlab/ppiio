@@ -23,7 +23,7 @@ source("00-paths.R")
 
 db <- read.csv(file.path(paths$derived, "CombinedDO_formatted.csv")) %>%
   select(vitalstatus, ppi, statin, immunotherapy, iostart, ppi_start, h2b_iostart, steroid_iostart, 
-         abx_iostart, nsaid_iostart, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, days, cancer.aggregated)
+         abx_iostart, nsaid_iostart, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, days, cancer.aggregated, ABX.days.to.iostart)
 ```
 
 
@@ -35,18 +35,22 @@ check.window <- function(vect, per){
   ifelse(grepl(pattern = wind, x = vect), 1, 0)
 }
 
-db <- db %>%
-  mutate(PPI.to.iostart = paste(",", PPI.days.to.iostart, ",", sep = ""),
-         ppi_start = check.window(PPI.days.to.iostart, c(-28,28)))
+# db <- db %>%
+#   mutate(PPI.to.iostart = paste(",", PPI.days.to.iostart, ",", sep = ""),
+#          ppi_start = check.window(PPI.days.to.iostart, c(-28,28)))
+# 
+# db <- db %>% 
+#   mutate(H2B.to.iostart = paste(",", H2B.days.to.iostart, ",", sep = ""),
+#          h2b_start = check.window(H2B.days.to.iostart, c(-28,28)))
 
 db <- db %>% 
-  mutate(H2B.to.iostart = paste(",", H2B.days.to.iostart, ",", sep = ""),
-         h2b_start = check.window(H2B.days.to.iostart, c(-28,28)))
+  mutate(ABX.to.iostart = paste(",", ABX.days.to.iostart, ",", sep = ""),
+         abx_start = check.window(ABX.days.to.iostart, c(-28,28)))
 ```
 
 
 ```{r define interesting columns}
-meds_iostart <- c("h2b_iostart", "nsaid_iostart", "ppi", "statin", "steroid_iostart", "abx_iostart")
+meds_iostart <- c("h2b_iostart", "nsaid_iostart", "ppi", "statin", "steroid_iostart", "abx_start")
 
 allcancers <- c('Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma',"head and neck carcinoma")
 ```
@@ -77,11 +81,11 @@ almeds.plots <- ggsurvplot(sfits,
                            font.legend = list(size = 12))
 ```
 
-```{r fig.height=6, fig.width=6}
+```{r 6, fig.height=6, fig.width=6}
 almeds.plots[["ppi"]]
 almeds.plots[["h2b_iostart"]]
-```
 
+```
 
 
 Heat map
@@ -103,7 +107,7 @@ almeds.dat <- almeds.dat %>%
   
 ```
 
-```{r, message=FALSE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE, error=FALSE}
 curvesbycancer <- list()
 sfits <- list()
 pvalbycancer <- list()
