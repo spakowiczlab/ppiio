@@ -30,8 +30,8 @@ vis_drake_graph(plan)
 # Access targets
 
 ```{r}
-loadd(CoRR.addABX)
-loadd(P188.addABX)
+loadd(CoRR.addICIgroup)
+loadd(P188.addICIgroup)
 loadd(TCC.full)
 loadd(DO.combined)
 
@@ -46,8 +46,8 @@ loadd(DO.combined)
 out.dir <- file.path("T:", "Labs", "Spakowicz", "ppiio", "data", "derived", Sys.Date())
 
 
-write.csv(CoRR.addABX, file.path(out.dir, "CoRR4684_formatted.csv"), row.names = F)
-write.csv(P188.addABX, file.path(out.dir, "P188_formatted.csv"), row.names = F)
+write.csv(CoRR.addICIgroup, file.path(out.dir, "CoRR4684_formatted.csv"), row.names = F)
+write.csv(P188.addICIgroup, file.path(out.dir, "P188_formatted.csv"), row.names = F)
 write.csv(TCC.full, file.path(out.dir, "TCC000138_formatted.csv"), row.names = F)
 write.csv(DO.combined, file.path(out.dir, "CombinedDO_formatted.csv"), row.names = F)
 ```

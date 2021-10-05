@@ -11,6 +11,7 @@ plan <- drake_plan(
   # This could also be a csv defining the important relationships, of course
   class.key = pull_class_assignments(),
   abx.key = generate_abx_key(),
+  revised.treatments = format_revised_treatments(),
   
   # Focus on CoRR
   cancer.key = generate_cancer_key(),
@@ -21,6 +22,8 @@ plan <- drake_plan(
                                                   "Durvalumab + Tremelimumab", 
                                                   "Tremelimumab", "Nivolumab + Chemotherapy",
                                                   "Durvalumab", "Other", "Unknown"),
+                                immunotherapy.group = c("PD-1", "PD-1", "CTLA-4", "PD-L1", "PD1+CTLA4", "PD1+CTLA4",
+                                                        "CTLA-4", "PD1+chemo", "PD-L1", "Other", "Unknown"),
                                 stringsAsFactors = FALSE),
                           stringsAsFactors = F) %>%
     mutate(immunotherapy = as.numeric(immunotherapy)),
@@ -31,7 +34,9 @@ plan <- drake_plan(
                                                    "Nivo + Ipi", 
                                                    "Atezolizumab", "Nivolumab monotherapy", "Medi4736 + Tremelimumab",
                                                     "Tremelimumab", "Nivo + chemo", "MEDI4736, durvalumab",
-                                                   "Ipilimumab", "Other")), 
+                                                   "Ipilimumab", "Other"),
+                                 immunotherapy.group = c("PD-1", "PD1+chemo", "PD1+chemo", "PD1-chemo",  "PD1+chemo", "PD1+CTLA4", "CTLA-4",
+                                                         "PD-1", "PD1+CTLA4", "CTLA-4", "PD1+chemo", "PD-L1", "CTLA-4", "Other")), 
                            stringsAsFactors = F)%>%
     mutate(immunotherapy = as.numeric(immunotherapy)), 
   
@@ -39,15 +44,17 @@ plan <- drake_plan(
   start.ordering.offset = check_date_difference(meds),
   CoRR.timing = pull_timing_info(class.key, meds, start.ordering.offset["Median"], CoRR.form),
   CoRR.addABX = pull_timing_info(abx.key, meds, start.ordering.offset["Median"], CoRR.timing),
+  CoRR.addICIgroup = fix_ICI_other(CoRR.addABX, revised.treatments),
   
   # Focus on P188 - this is the same sort of data as CoRR, just an updated database. Format should be the same.
   P188.form = quick_format_CoRR(P188, noio, cancer.key, ionames2),
   P188.timing = pull_timing_info(class.key, meds, start.ordering.offset["Median"], P188.form),
   P188.addABX = pull_timing_info(abx.key, meds, start.ordering.offset["Median"], P188.timing),
+  P188.addICIgroup = fix_ICI_other(P188.addABX, revised.treatments),
   
   # Focus on TCC000139
   TCC.full = ORIEN_timing_info(TCC.clin, TCC.IW, class.key),
   
   # Combine CoRR and P188, removing duplicate patients
-  DO.combined = combine_DO_dbs(CoRR.addABX, P188.addABX)
+  DO.combined = combine_DO_dbs(CoRR.addICIgroup, P188.addICIgroup)
 )
