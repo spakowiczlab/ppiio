@@ -6,10 +6,10 @@ format_revised_treatments <- function(){
 
   from.MH.cols$Immunotherapy[5] <- "given an anti-CTLA4 Ab but a new one: AGEN1884 CTLA4; kept as other"
   from.MH.cols$Immunotherapy[11] <- "Pembro + chemo (FOLFOX) - no option to change in this database's dropdown menu; it only has nivo + chemo"
-  from.MH.cols$Immunotherapy.group <- c("PD1+targeted", "PD1+monoclonalAb", "CTLA4+targeted", "PD1+monoclonalAb", "CTLA4",
+  from.MH.cols$immunotherapy.group <- c("PD1+targeted", "PD1+monoclonalAb", "CTLA4+targeted", "PD1+monoclonalAb", "CTLA4",
                                         "PD1+targeted", "PD1+monoclonalAb", "CTLA4+targeted", "PD1+targeted", "PD1+targeted",
                                         "PD1+chemo", "PD1+targeted", "PD1+chemo", "PD1+chemo", "PD1+targeted",
-                                        "PD1+CTLA4+chemo", "PD1+chemo", "PD1+targeted", "PD1+chemo", "PD1+chemo",
+                                        "PD1+CTLA4+chemo", "PD1+chemo", "PD1+targeted", "PD1+targeted", "PD1+chemo",
                                         "PD1+targeted", "PD1+targeted", "PD1+targeted", "PD1+chemo", "PD1+targeted")
   
   revised.ids <- from.MH.cols %>%
