@@ -1,4 +1,4 @@
-pull_timing_info <- function(des.meds, meds.list, ord.offset, cdb){
+pull_timing_info <- function(des.meds, meds.list, ord.offset, cdb, end.complete){
  #Goal: Get df of timing columns for each of the desired meds, classes. This is a different version than appears in abx_class-improve because
   # I'd like to think my coding has improved some. Assumes similar format to the meds list in db-meds.RData.
   # test <- c("piperacillin", "amoxicillin", "vancomycin")
@@ -22,12 +22,15 @@ pull_timing_info <- function(des.meds, meds.list, ord.offset, cdb){
     left_join(meds.list) %>%
     mutate(MRN = as.character(MRN), 
            START_DATE = as.Date(START_DATE),
-           ORDERING_DATE = as.Date(ORDERING_DATE)) %>%
-    select(MRN, GENERIC_NAME, START_DATE, ORDERING_DATE, REFILLS, medname, medclass) %>%
+           ORDERING_DATE = as.Date(ORDERING_DATE),
+           END_DATE = as.Date(END_DATE)) %>%
+    select(MRN, GENERIC_NAME, START_DATE, ORDERING_DATE, END_DATE, REFILLS, medname, medclass) %>%
     inner_join(iostarts) %>%
     mutate(REFILLS = ifelse(is.na(REFILLS), 0, REFILLS),
            # quant.num = as.numeric(str_extract("^\\d+", QUANTITY)),
-           med.dur = (REFILLS+1) * 30,
+           med.dur = ifelse(end.complete == T & !is.na(END_DATE) & !is.na(START_DATE),
+                            END_DATE - START_DATE + 1,
+                            (REFILLS+1) * 30),
            days.to.io = ifelse(is.na(START_DATE),
                                (ORDERING_DATE - iostart) - ord.offset,
                                START_DATE - iostart),

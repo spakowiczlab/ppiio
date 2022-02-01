@@ -35,8 +35,6 @@ loadd(P188.addICIgroup)
 loadd(TCC.full)
 loadd(DO.combined)
 
-# loadd(P188)
-# loadd(ionames2)
 ```
 
 
