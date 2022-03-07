@@ -69,6 +69,34 @@ almeds.plots <- ggsurvplot(sfits,
                            pval = TRUE, 
                            conf.int = FALSE, 
                            risk.table = TRUE,
+                           title = "Association of PPI with OS in all cancers", 
+                           legend.title = "", 
+                           legend.labs = list(c("Not prescribed", "Prescribed PPI's")),
+                           xscale = "d_m",
+                           break.time.by=365.25*2,
+                           ylab = "Survival probability", 
+                           xlab = "Months", 
+                           palette = c("slateblue2", "lightsalmon2"), 
+                           fontsize = 6, 
+                           font.legend = list(size = 12))
+
+```
+
+```{r}
+g <- almeds.plots[["ppi"]]
+g
+
+pdf("PPI_KMcurve.pdf")
+print(g, newpage = FALSE)
+dev.off()
+```
+
+```{r 6}
+almeds.plots <- ggsurvplot(sfits,
+                           data = db,
+                           pval = TRUE, 
+                           conf.int = FALSE, 
+                           risk.table = TRUE,
                            title = "Association of H2B with OS in all cancers", 
                            legend.title = "", 
                            legend.labs = list(c("Not prescribed", "Prescribed H2B's")),
@@ -81,12 +109,19 @@ almeds.plots <- ggsurvplot(sfits,
                            font.legend = list(size = 12))
 ```
 
-```{r 6, fig.height=6, fig.width=6}
-almeds.plots[["ppi"]]
-almeds.plots[["h2b_iostart"]]
+```{r}
+g <- almeds.plots[["h2b_iostart"]]
 
+pdf("H2B_KMcurve.pdf")
+print(g, newpage = FALSE)
+dev.off()
 ```
 
+
+save survival curves
+```{r}
+
+```
 
 Heat map
 ```{r retain full cohort info for heatmap}
