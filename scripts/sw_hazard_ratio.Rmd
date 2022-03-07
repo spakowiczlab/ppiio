@@ -169,4 +169,7 @@ ggplot(data = allpvaltime, aes(x = leftanchor, y = hazard.ratio)) +
   labs(title = "", x = "Days relative to ICI start",y = "Hazard Ratio" ) +
   theme_bw() + 
   theme(axis.text = element_text(size = 12), axis.title = element_text(size = 15))
+
+ggsave("../figures/3-7-22_hazardRatio.png")
 ```
+

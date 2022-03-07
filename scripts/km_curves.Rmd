@@ -118,11 +118,6 @@ dev.off()
 ```
 
 
-save survival curves
-```{r}
-
-```
-
 Heat map
 ```{r retain full cohort info for heatmap}
 almeds.pval <- lapply(sfits, function (x) surv_pvalue(x)[1,2])
@@ -228,6 +223,9 @@ heat.plot <- heat.data %>%
   scale_y_discrete(breaks = c('Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma', "head and neck carcinoma", "All"), 
                    labels = c('Other', 'Melanoma', 'Non-small cell lung cancer', 'Renal cell carcinoma',"Head and neck carcinoma", "All"))
 heat.plot
+
+ggsave("../figures/3-7-22_heatmap.png")
 ```
+
 
 
