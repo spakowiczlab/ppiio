@@ -11,6 +11,14 @@ plan <- drake_plan(
     mutate(MRN = PAT_MRN_ID,
            GENERIC_NAME = MEDICATION_NAME,
            REFILLS = NA),
+  ster = readRDS("T:/Labs/Spakowicz/data/co-med-io/steroids_validate.RDS") %>%
+    mutate(REFILLS= as.numeric(gsub("o", 0, REFILLS))),
+  ster.new = read_excel("T:/Labs/Spakowicz/ppiio/data/raw/IW-meds/HBOC1212 Updated data pull 03.31.2022/TASK1202137_HBOC1212_Main data report_20220330.xlsx",
+                        sheet = "Meds all timepoints") %>%
+    filter(ORDERING_MODE_C_Name == "Outpatient" | ind_ord_mar_given == 1) %>%
+    mutate(MRN = PAT_MRN_ID,
+           GENERIC_NAME = MEDICATION_NAME,
+           REFILLS = NA),
   noio = readRDS("T:/Labs/Spakowicz/ppiio/data/curated/NoImmunotherapy.RDS"),
   # This could also be a csv defining the important relationships, of course
   class.key = pull_class_assignments(),
@@ -47,18 +55,20 @@ plan <- drake_plan(
   
   CoRR.form = quick_format_CoRR(CoRR, noio, cancer.key, ionames),
   start.ordering.offset = check_date_difference(meds),
+  ster.ordering.offset = check_date_difference(ster),
   CoRR.timing = pull_timing_info(bind_rows(class.key,abx.key), meds, 
                                  start.ordering.offset["Median"], CoRR.form, F),
-  # CoRR.addCS = pull_timing_info(CS.key, meds, start.ordering.offset["Median"], CoRR.timing),
-  CoRR.addICIgroup = fix_ICI_other(CoRR.timing, revised.treatments),
+  CoRR.addCS = pull_timing_info(CS.key, ster, ster.ordering.offset["Median"], CoRR.timing,F),
+  CoRR.addICIgroup = fix_ICI_other(CoRR.addCS, revised.treatments),
   
   # Focus on P188 - this is the same sort of data as CoRR, just an updated database. Format should be the same.
   P188.form = quick_format_CoRR(P188, noio, cancer.key, ionames2),
   order.offset.2 = check_date_difference(meds.new),
+  ster.offset.2 = check_date_difference(ster.new),
   P188.timing = pull_timing_info(bind_rows(class.key,abx.key), meds.new,
                                  order.offset.2["Median"], P188.form, T),
-  # P188.addCS = pull_timing_info(CS.key, meds.new, start.ordering.offset["Median"], P188.timing),
-  P188.addICIgroup = fix_ICI_other(P188.timing, revised.treatments),
+  P188.addCS = pull_timing_info(CS.key, ster.new, ster.offset.2["Median"], P188.timing, F),
+  P188.addICIgroup = fix_ICI_other(P188.addCS, revised.treatments),
   
   # Focus on TCC000139
   TCC.full = ORIEN_timing_info(TCC.clin, TCC.IW, class.key),
