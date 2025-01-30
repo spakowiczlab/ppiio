@@ -43,3 +43,4 @@ ppiio.json
 
 #paths file
 00-paths.R
+.DS_Store
