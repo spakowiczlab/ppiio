@@ -49,8 +49,9 @@ cancer.key <-
 # load data
 ```{r}
 # db <- readRDS("T:/Labs/Spakowicz/data/exoio/table_one_db.RDS") # want this to be in ppiio
-CoRR <- read.csv("T:/Labs/Spakowicz/projects/ppiio/data/raw/CoRR4684/2021-01-27/CoRR4684ARetrospecti_DATA_2021-01-27_1430.csv", stringsAsFactors = F)
+CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/CoRR4684/2021-01-27/CoRR4684ARetrospecti_DATA_2021-01-27_1430.csv", stringsAsFactors = F)
 #can change "" into NA
+noio <- readRDS("T:/Labs/Spakowicz/ppiio/data/curated/NoImmunotherapy.RDS")
 
 
 #P188 <- read.csv("T:/Labs/Spakowicz/projects/ppiio/data/raw/P188/2021-01-27/P188NSCLCIOTox111611_DATA_2021-01-27_1441.csv")
@@ -93,7 +94,7 @@ ppi_corr <- CoRR %>%
   filter(!is.na(iostart))%>%
   mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
   left_join(cancer.key) %>%
-  # filter(cancer.name %in% c("Other","melanoma","non-small cell lung cancer","small cell lung cancer"))%>%
+  # (cancer.name %in% c("Other","melanoma","non-small cell lung cancer","small cell lung cancer"))%>%
   # rename("comorb.score"="Total") %>%
   mutate(Cancer = if_else(grepl("melanoma|non-small cell lung cancer",
                                 cancer.name),
@@ -266,6 +267,7 @@ write.csv(tbl1.ppi.therapy, "../tables/table1_ppi-lotherapy.csv")
 write.csv(tbl1.ppi.chemoprior, "../tables/table1_ppi-chemoprior.csv")
 write.csv(tbl1.ppi, "../tables/table1_ppi.csv")
 ```
+
 
 ```{r}
 COMPARE <- coxdf %>%
