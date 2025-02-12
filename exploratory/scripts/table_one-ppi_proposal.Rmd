@@ -48,14 +48,14 @@ cancer.key <-
 
 # load data
 ```{r}
-# db <- readRDS("T:/Labs/Spakowicz/data/exoio/table_one_db.RDS") # want this to be in ppiio
+db <- readRDS("T:/Labs/Spakowicz/ppiio/data/raw/table_one_db.RDS") # want this to be in ppiio
 CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/CoRR4684/2021-01-27/CoRR4684ARetrospecti_DATA_2021-01-27_1430.csv", stringsAsFactors = F)
 #can change "" into NA
 noio <- readRDS("T:/Labs/Spakowicz/ppiio/data/curated/NoImmunotherapy.RDS")
 
 
-#P188 <- read.csv("T:/Labs/Spakowicz/projects/ppiio/data/raw/P188/2021-01-27/P188NSCLCIOTox111611_DATA_2021-01-27_1441.csv")
-# comorb <- read_excel("T:/Labs/Spakowicz/projects/co-med-io/CharlsonScore_Presley_08272019 acj.xlsx")
+P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/P188/2021-01-27/P188NSCLCIOTox111611_DATA_2021-01-27_1441.csv")
+comorb <- read_excel("T:/Labs/Spakowicz/ppiio/data/raw/CharlsonScore_Presley_08272019 acj.xlsx")
                                                
 # T:/Labs/Spakowicz/projects/ppiio/data/raw/CoRR4684
 # also read in the other db (P118)
@@ -71,17 +71,17 @@ noio <- readRDS("T:/Labs/Spakowicz/ppiio/data/curated/NoImmunotherapy.RDS")
 
 Note: No IO comes from a curated list of MRNs 
 ```{r}
-# comorb.join <- comorb %>%
-#   select(MRN, Total) %>%
-#   rename("comorb.score" = "Total") %>%
-#   mutate(MRN = as.character(MRN))
+ comorb.join <- comorb %>%
+   select(MRN, Total) %>%
+   rename("comorb.score" = "Total") %>%
+   mutate(MRN = as.character(MRN))
 ppi_corr <- CoRR %>%
   rename("MRN"="record_id") %>%
-  # filter(MRN %in% db$record_id) %>% 
-  # select(MRN, dob, cancer, iostart, contains("stop"), io_2_start, io_3_start, vitalstatus, bmi,
-  #        ecog,sex,contains("ppi"), immunotherapy,chemo_prior,line_of_therapy, other_io, staging, deathdate,
-  #        lastcontact) %>%
-  # select(-contains("subs"), -contains("other_ppi"), -contains("ppi_reason")) %>%
+#   filter(MRN %in% db$record_id) %>% 
+#   select(MRN, dob, cancer, iostart, contains("stop"), io_2_start, io_3_start, vitalstatus, bmi,
+#          ecog,sex,contains("ppi"), immunotherapy,chemo_prior,line_of_therapy, other_io, staging, deathdate,
+#          lastcontact) %>%
+#  select(-contains("subs"), -contains("other_ppi"), -contains("ppi_reason")) %>%
   filter(vitalstatus != 3) %>%
   mutate(vitalstatus = ifelse(vitalstatus == 1, 1, 0))%>%
   mutate(deathdate = ifelse(deathdate == "", NA, deathdate),
@@ -94,8 +94,8 @@ ppi_corr <- CoRR %>%
   filter(!is.na(iostart))%>%
   mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
   left_join(cancer.key) %>%
-  # (cancer.name %in% c("Other","melanoma","non-small cell lung cancer","small cell lung cancer"))%>%
-  # rename("comorb.score"="Total") %>%
+#  (cancer.name %in% c("Other","melanoma","non-small cell lung cancer","small cell lung cancer"))%>%
+# rename("comorb.score"="Total") %>%
   mutate(Cancer = if_else(grepl("melanoma|non-small cell lung cancer",
                                 cancer.name),
                           true = cancer.name,
@@ -105,7 +105,7 @@ ppi_corr <- CoRR %>%
   filter(immunotherapy != 11) %>%
   drop_na(iostart, ppi, date, dob) %>%
   filter(!MRN %in% noio)
-  # left_join(comorb.join)
+ # left_join(comorb.join)
 
 # table(ppi_corr$Cancer & )
    ##only throw out NA for survival info
@@ -121,27 +121,27 @@ ppi_corr <- CoRR %>%
 
 
 ############ no com.score ############
-# P188$record_id <- as.character(P188$record_id)
-# ppi_p188 <- P188 %>%
-#   rename("MRN"="record_id") %>%
-#   inner_join(comorb, by="MRN") %>%
-#   mutate(date_col = ifelse(deathdate == "", lastcontact,deathdate),
-#          dob = as.Date(dob),
-#          date_col = as.Date(date_col)) %>%
-#   filter(!is.na(date_col)) %>%
-#   mutate(age = floor(age_calc(dob,date_col, units = "years"))) %>%
-#   select(MRN,cancer,iostart, contains("stop"), -contains("subs"), io_2_start, io_3_start, vitalstatus, age, bmi, ecog,sex,
-#          contains("ppi"),-contains("other_ppi"), -contains("ppi_reason"), immunotherapy, chemo_prior,line_of_therapy, other_io, staging, deathdate, lastcontact,Total) %>%
-#   select(-c("chemo_stop","rad_stop")) %>%
-#   filter(!is.na(bmi) & !bmi == Inf) %>%
-#   filter(!is.na(immunotherapy)) %>%
-#   left_join(cancer.key)
+ P188$record_id <- as.character(P188$record_id)
+ ppi_p188 <- P188 %>%
+   rename("MRN"="record_id") %>%
+   inner_join(comorb, by="MRN") %>%
+   mutate(date_col = ifelse(deathdate == "", lastcontact,deathdate),
+          dob = as.Date(dob),
+          date_col = as.Date(date_col)) %>%
+   filter(!is.na(date_col)) %>%
+   mutate(age = floor(age_calc(dob,date_col, units = "years"))) %>%
+   select(MRN,cancer,iostart, contains("stop"), -contains("subs"), io_2_start, io_3_start, vitalstatus, age, bmi, ecog,sex,
+         contains("ppi"),-contains("other_ppi"), -contains("ppi_reason"), immunotherapy, chemo_prior,line_of_therapy, other_io, staging, deathdate, lastcontact,Total) %>%
+   select(-c("chemo_stop","rad_stop")) %>%
+   filter(!is.na(bmi) & !bmi == Inf) %>%
+   filter(!is.na(immunotherapy)) %>%
+   left_join(cancer.key)
 
 
 
-# ppi_long <- rbind(ppi_p188, ppi_corr) %>%
-#   rename("comorb.score"="Total") %>%
-#   filter(!duplicated(MRN))
+ ppi_long <- rbind(ppi_p188, ppi_corr) %>%
+   rename("comorb.score"="Total") %>%
+   filter(!duplicated(MRN))
   
 
 write.csv(ppi_corr, "../data/2021-01-27_db-formatted.csv", row.names = F)
