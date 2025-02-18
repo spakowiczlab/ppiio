@@ -1,0 +1,129 @@
+---
+title: "Processing"
+author: "Anna Petouhoff"
+date: "2025-02-17"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(readxl)
+```
+
+# read in csv
+```{r}
+CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/CoRR4684/2025-02-17/CoRR4684ARetrospecti_DATA_2025-02-17_2009.csv")
+P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/P188/2025-02-17/P188NSCLCIOTox111611_DATA_2025-02-17_1010.csv")
+```
+
+#create a cancer key 
+```{r}
+cancer.copy <- c("1 non-small cell lung cancer
+2 small cell lung cancer
+3 melanoma
+4 renal cell carcinoma
+5 head and neck carcinoma
+6 merkel cell carcinoma
+7 Hodgkin lymphoma
+8 breast cancer
+9 colon cancer
+10 pancreatic cancer
+11 Sarcoma
+12 Prostate
+13 bladder cancer
+14 AML
+15 ALL
+17 Other") %>%
+  strsplit(., split = "\n") %>%
+  unlist
+
+cancer.key <- 
+  data.frame(
+    cancer =  cancer.copy %>%
+      gsub("(\\d+).*", "\\1", .) %>%
+      as.integer(),
+    cancer.name = cancer.copy %>%
+      gsub("\\d+ (.*)", "\\1", .),
+    stringsAsFactors = FALSE
+  )
+```
+
+
+# process CoRR4684
+```{r}
+ppi_corr <- CoRR %>%
+   filter(iostart != "") %>%
+  mutate(vitalstatus = ifelse(vitalstatus == 1, 1, 0)) %>%
+  mutate(deathdate = ifelse(deathdate == "", NA, deathdate),
+         lastcontact = ifelse(lastcontact == "", NA, lastcontact)) %>%
+  mutate(date = coalesce(deathdate, lastcontact),
+         date = as.Date(date),
+         iostart = as.Date(iostart),
+         dob = as.Date(dob)) %>%
+  mutate(age=as.numeric(as.character(floor((date-dob)/365))))%>%
+   mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
+  left_join(cancer.key) %>%
+  mutate(Cancer = if_else(grepl("melanoma|non-small cell lung cancer",
+                                cancer.name),
+                          true = cancer.name,
+                          false = "Other"),
+         Cancer = fct_relevel(Cancer, c("melanoma", "non-small cell lung cancer",
+                                        "Other"))) %>%
+  filter(immunotherapy != 11) %>%
+  drop_na(ppi)
+
+```
+
+```{r}
+write.csv(ppi_corr,  "T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")
+```
+
+
+# Process P188
+```{r}
+ppi_P188 <- P188 %>%
+  filter(cancer == 1) %>%
+  filter(staging == 4) %>%
+  filter(iostart != "")  %>%
+  mutate(vitalstatus = ifelse(vitalstatus == 1, 1, 0)) %>%
+  mutate(deathdate = ifelse(deathdate == "", NA, deathdate),
+         lastcontact = ifelse(lastcontact == "", NA, lastcontact)) %>%
+  mutate(date = coalesce(deathdate, lastcontact),
+         date = as.Date(date),
+         iostart = as.Date(iostart),
+         dob = as.Date(dob)) %>%
+  mutate(age=as.numeric(as.character(floor((date-dob)/365))))%>%
+   mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
+ drop_na(ppi)
+```
+
+```{r}
+write.csv(ppi_P188, "T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted.csv")
+```
+
+
+ppi_corr <- CoRR %>%
+  rename("MRN"="record_id") %>%
+  filter(vitalstatus != 3) %>%
+  mutate(vitalstatus = ifelse(vitalstatus == 1, 1, 0))%>%
+  mutate(deathdate = ifelse(deathdate == "", NA, deathdate),
+         lastcontact = ifelse(lastcontact == "", NA, lastcontact)) %>%
+  mutate(date = coalesce(deathdate, lastcontact),
+         date = as.Date(date),
+         iostart = as.Date(iostart),
+         dob = as.Date(dob))%>%
+  mutate(age=as.numeric(as.character(floor((date-dob)/365))))%>%
+  filter(!is.na(iostart))%>%
+  mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
+  left_join(cancer.key) %>%
+  mutate(Cancer = if_else(grepl("melanoma|non-small cell lung cancer",
+                                cancer.name),
+                          true = cancer.name,
+                          false = "Other"),
+         Cancer = fct_relevel(Cancer, c("melanoma", "non-small cell lung cancer",
+                                        "Other"))) %>%
+  filter(immunotherapy != 11) %>%
+  drop_na(iostart, ppi, date, dob) %>%
+  filter(!MRN %in% noio)

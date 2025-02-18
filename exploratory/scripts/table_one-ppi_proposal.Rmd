@@ -71,10 +71,10 @@ comorb <- read_excel("T:/Labs/Spakowicz/ppiio/data/raw/CharlsonScore_Presley_082
 
 Note: No IO comes from a curated list of MRNs 
 ```{r}
- comorb.join <- comorb %>%
-   select(MRN, Total) %>%
-   rename("comorb.score" = "Total") %>%
-   mutate(MRN = as.character(MRN))
+# comorb.join <- comorb %>%
+#   select(MRN, Total) %>%
+#   rename("comorb.score" = "Total") %>%
+#   mutate(MRN = as.character(MRN))
 ppi_corr <- CoRR %>%
   rename("MRN"="record_id") %>%
 #   filter(MRN %in% db$record_id) %>% 
