@@ -55,6 +55,7 @@ cancer.key <-
 ```{r}
 ppi_corr <- CoRR %>%
    filter(iostart != "") %>%
+  filter(vitalstatus != 3) %>%
   mutate(vitalstatus = ifelse(vitalstatus == 1, 1, 0)) %>%
   mutate(deathdate = ifelse(deathdate == "", NA, deathdate),
          lastcontact = ifelse(lastcontact == "", NA, lastcontact)) %>%
@@ -62,7 +63,7 @@ ppi_corr <- CoRR %>%
          date = as.Date(date),
          iostart = as.Date(iostart),
          dob = as.Date(dob)) %>%
-  mutate(age=as.numeric(as.character(floor((date-dob)/365))))%>%
+  mutate(age=as.numeric(as.character(floor((iostart-dob)/365))))%>%
    mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
   left_join(cancer.key) %>%
   mutate(Cancer = if_else(grepl("melanoma|non-small cell lung cancer",
@@ -72,8 +73,16 @@ ppi_corr <- CoRR %>%
          Cancer = fct_relevel(Cancer, c("melanoma", "non-small cell lung cancer",
                                         "Other"))) %>%
   filter(immunotherapy != 11) %>%
-  drop_na(ppi)
-
+  drop_na(ppi, dob) %>%
+  mutate(prior_chemo = ifelse(chemo_prior == 1, "yes", "no")) %>%
+  mutate(eventdate = coalesce(deathdate, lastcontact)) %>%
+  mutate(eventdate = as.POSIXct(eventdate, format = "%F"),
+         iostart = as.POSIXct(iostart, format = "%F"),
+         chemo_date = as.POSIXct(chemo_date, format = "%F")) %>%
+  mutate(days = eventdate - iostart) %>%
+ mutate(chemo_timing = as.numeric(difftime(iostart, chemo_date, units = "days"))) %>%
+  mutate(chemo_greater_one_year = ifelse(chemo_timing >366, 1, 0))
+  
 ```
 
 ```{r}
@@ -87,6 +96,7 @@ ppi_P188 <- P188 %>%
   filter(cancer == 1) %>%
   filter(staging == 4) %>%
   filter(iostart != "")  %>%
+  filter(vitalstatus != 3) %>%
   mutate(vitalstatus = ifelse(vitalstatus == 1, 1, 0)) %>%
   mutate(deathdate = ifelse(deathdate == "", NA, deathdate),
          lastcontact = ifelse(lastcontact == "", NA, lastcontact)) %>%
@@ -94,9 +104,10 @@ ppi_P188 <- P188 %>%
          date = as.Date(date),
          iostart = as.Date(iostart),
          dob = as.Date(dob)) %>%
-  mutate(age=as.numeric(as.character(floor((date-dob)/365))))%>%
+  mutate(age=as.numeric(as.character(floor((iostart-dob)/365))))%>%
    mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
- drop_na(ppi)
+ drop_na(ppi, chemo_prior, age) %>%
+  mutate(prior_chemo = ifelse(chemo_prior == 1, "yes", "no"))
 ```
 
 ```{r}
@@ -104,26 +115,4 @@ write.csv(ppi_P188, "T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_format
 ```
 
 
-ppi_corr <- CoRR %>%
-  rename("MRN"="record_id") %>%
-  filter(vitalstatus != 3) %>%
-  mutate(vitalstatus = ifelse(vitalstatus == 1, 1, 0))%>%
-  mutate(deathdate = ifelse(deathdate == "", NA, deathdate),
-         lastcontact = ifelse(lastcontact == "", NA, lastcontact)) %>%
-  mutate(date = coalesce(deathdate, lastcontact),
-         date = as.Date(date),
-         iostart = as.Date(iostart),
-         dob = as.Date(dob))%>%
-  mutate(age=as.numeric(as.character(floor((date-dob)/365))))%>%
-  filter(!is.na(iostart))%>%
-  mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
-  left_join(cancer.key) %>%
-  mutate(Cancer = if_else(grepl("melanoma|non-small cell lung cancer",
-                                cancer.name),
-                          true = cancer.name,
-                          false = "Other"),
-         Cancer = fct_relevel(Cancer, c("melanoma", "non-small cell lung cancer",
-                                        "Other"))) %>%
-  filter(immunotherapy != 11) %>%
-  drop_na(iostart, ppi, date, dob) %>%
-  filter(!MRN %in% noio)
+

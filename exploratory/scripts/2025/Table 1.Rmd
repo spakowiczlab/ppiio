@@ -46,7 +46,7 @@ CoRR_df <-
          follow_up_time=follow_up,
          Sex = sex,
          Therapy = ifelse(line_of_therapy == 1,"1",">1"),
-         Chemo_prior = chemo_prior)
+         Chemo_prior = prior_chemo)
 P188_df <- 
   P188 %>%
   left_join(ionames) %>%
@@ -57,7 +57,7 @@ P188_df <-
          follow_up_time=follow_up,
          Sex = sex,
          Therapy = ifelse(line_of_therapy == 1,"1",">1"),
-         Chemo_prior = chemo_prior)
+         Chemo_prior = prior_chemo)
 ```
 
 Adjust the immunotherapy to four categories
@@ -106,8 +106,8 @@ P188_df <-
 
 # Table 1 for CoRR
 ```{r}
-listVars <- c("Age", "Sex", "vitalstatus","ECOG PS", "Cancer", "Staging", "Immunotherapy","Chemo_prior","follow_up_time")
-catVars <- c("Sex", "Cancer", "vitalstatus","Immunotherapy", "ECOG PS","Staging")
+listVars <- c("Age", "Sex", "vitalstatus","ECOG PS", "Cancer", "Staging", "Immunotherapy","Chemo_prior", "follow_up_time")
+catVars <- c("Sex", "Cancer", "vitalstatus","Immunotherapy", "ECOG PS","Chemo_prior", "Staging")
 table1 <- CreateTableOne(vars = listVars,
                          data = CoRR_df,
                          factorVars = catVars,
@@ -119,7 +119,7 @@ write.csv(tbl1.ppi, "../../tables/table1.csv")
 # Table 2 for P188
 ```{r}
 listVars2 <- c("Age", "Sex", "vitalstatus","ECOG PS", "Immunotherapy","Chemo_prior","follow_up_time")
-catVars2 <- c("Sex", "vitalstatus","Immunotherapy", "ECOG PS")
+catVars2 <- c("Sex", "vitalstatus","Immunotherapy", "ECOG PS","Chemo_prior")
 table2 <- CreateTableOne(vars = listVars2,
                          data = P188_df,
                          factorVars = catVars2,

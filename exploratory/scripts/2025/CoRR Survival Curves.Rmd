@@ -1,0 +1,121 @@
+---
+title: "CoRR Survival Curves"
+author: "Anna Petouhoff"
+date: "2025-02-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+library(ggplot2)
+library(survival)
+library(survminer)
+library(svglite)
+library(patchwork)
+```
+
+```{r}
+CoRR <- CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")
+```
+
+# PPI Use and OS across all cancers 
+```{r}
+all_surv <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR)
+
+all_surv_plot <- ggsurvplot(all_surv, pval = T, risk.table = T) +
+  ggtitle("PPI use and OS across all cancers")
+
+combined_all_surv <- all_surv_plot$plot / all_surv_plot$table + plot_layout(heights = c(3, 1))
+combined_all_surv
+```
+
+# PPI use and OS in first line 
+```{r}
+first_line <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$line_of_therapy == 1,])
+
+first_line_plot <- ggsurvplot(first_line, pval = T, risk.table = T) +
+  ggtitle("PPI use and OS treated in first line with ICI")
+
+combined_first_line <- first_line_plot$plot / first_line_plot$table + plot_layout(heights = c(3, 1))
+combined_first_line
+```
+
+# PPI use and OS in second and beyond
+```{r}
+second_line <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$line_of_therapy != 1,])
+
+second_line_plot <- ggsurvplot(second_line, pval = T, risk.table = T) +
+  ggtitle("PPI use and OS treated in second line and beyond with ICI")
+
+combined_second_line <- second_line_plot$plot / second_line_plot$table + plot_layout(heights = c(3, 1))
+combined_second_line
+```
+
+# PPI use and OS without prior chemotherapy
+```{r}
+no_chemo <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$prior_chemo == "no",])
+
+no_chemo_plot <- ggsurvplot(no_chemo, pval = T, risk.table = T) +
+  ggtitle("PPI use and OS without prior chemotherapy")
+
+combined_no_chemo <- no_chemo_plot$plot / no_chemo_plot$table + plot_layout(heights = c(3, 1))
+combined_no_chemo
+```
+# PPI use and OS with prior chemotherapy
+```{r}
+chemo <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$prior_chemo == "yes",])
+
+chemo_plot <- ggsurvplot(chemo, pval = T, risk.table = T) +
+  ggtitle("PPI use and OS with prior chemotherapy")
+
+combined_chemo <- chemo_plot$plot / chemo_plot$table + plot_layout(heights = c(3, 1))
+combined_chemo
+```
+
+# PPI use and OS if patient recieved chemo more than 1 year
+
+```{r}
+prior_chemotherapy <- CoRR %>%
+  drop_na(chemo_greater_one_year)
+
+more_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = prior_chemotherapy[prior_chemotherapy$chemo_greater_one_year == 1,])
+
+more_than_one_year_plot <- ggsurvplot(more_than_one_year, pval = T, risk.table = T) +
+  ggtitle("PPI use and OS if patient recieved chemo more than 1 year")
+
+combined_more_than_one_year <- more_than_one_year_plot$plot / more_than_one_year_plot$table + plot_layout(heights = c(3, 1))
+combined_more_than_one_year
+```
+
+# PPI use and OS if patient recieved chemo less than 1 year
+```{r}
+less_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = prior_chemotherapy[prior_chemotherapy$chemo_greater_one_year == 0,])
+
+less_than_one_year_plot <- ggsurvplot(less_than_one_year, pval = T, risk.table = T) +
+  ggtitle("PPI use and OS if patient recieved chemo less than 1 year")
+
+combined_less_than_one_year <- less_than_one_year_plot$plot / less_than_one_year_plot$table + plot_layout(heights = c(3, 1))
+combined_less_than_one_year
+```
+
+
+
+```{r}
+
+ggsave("../../figures/2025/PPI_all_cancers_KM.svg", plot = combined_all_surv, device = "svg", width = 7, height = 4)
+ggsave("../../figures/2025/PPI_first_line_KM.svg", plot = combined_first_line, device = "svg", width = 7, height = 4)
+ggsave("../../figures/2025/PPI_second_line_KM.svg", plot = combined_second_line, device = "svg", width = 7, height = 4)
+ggsave("../../figures/2025/PPI_no_chemo_KM.svg", plot = combined_no_chemo, device = "svg", width = 7, height = 4)
+ggsave("../../figures/2025/PPI_chemo_KM.svg", plot = combined_chemo, device = "svg", width = 7, height = 4)
+ggsave("../../figures/2025/PPI_more_than_one_year_KM.svg", plot = combined_more_than_one_year, device = "svg", width = 7, height = 4)
+ggsave("../../figures/2025/PPI_less_than_one_year.svg", plot = combined_less_than_one_year, device = "svg", width = 7, height = 4)
+
+```
+
+
+
+
