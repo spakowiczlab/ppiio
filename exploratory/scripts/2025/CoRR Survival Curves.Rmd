@@ -19,7 +19,7 @@ library(patchwork)
 ```
 
 ```{r}
-CoRR <- CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")
+CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")
 ```
 
 # PPI Use and OS across all cancers 

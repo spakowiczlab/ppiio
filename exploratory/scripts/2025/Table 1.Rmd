@@ -25,20 +25,9 @@ P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted
 
 
 ```{r}
-# Create key for naming immunotherapy codes
-ionames <- data.frame(immunotherapy = c(1,2,3,4,5,6,7,8,9,10), 
-                      Immunotherapy = c("Nivolumab", "Pembrolizumab", 
-                                        "Atezolizumab", "Ipilimumab", 
-                                        "Nivolumab + Ipilimumab", 
-                                        "Durvalumab + Tremelimumab", 
-                                        "Tremelimumab", "Nivolumab + Chemotherapy",
-                                        "Durvalumab", "Other"),
-                      stringsAsFactors = FALSE)
-
 # Select and adjust dataframe for Table 1
 CoRR_df <- 
   CoRR %>%
-  left_join(ionames) %>%
   mutate(`ECOG PS` = fct_relevel(ifelse(ecog > 2, ">2", ecog), "0","1","2",">2"),
          Staging  = ifelse(staging == 5, "Unknown", staging),
          BMI = bmi,
@@ -49,7 +38,6 @@ CoRR_df <-
          Chemo_prior = prior_chemo)
 P188_df <- 
   P188 %>%
-  left_join(ionames) %>%
   mutate(`ECOG PS` = fct_relevel(ifelse(ecog > 2, ">2", ecog), "0","1","2",">2"),
          Staging  = ifelse(staging == 5, "Unknown", staging),
          BMI = bmi,
@@ -60,49 +48,6 @@ P188_df <-
          Chemo_prior = prior_chemo)
 ```
 
-Adjust the immunotherapy to four categories
-```{r}
-CoRR_df <- 
-  CoRR_df %>%
-  mutate(Immunotherapy = if_else(grepl("Atezo|Durvalumab$|Nivolumab$|Pembro",
-                                           Immunotherapy),
-                                     true = "PD1/L1",
-                                     false = Immunotherapy),
-         Immunotherapy = if_else(grepl("Durvalumab \\+ Tremelimumab$|Nivolumab \\+ Ipilimumab$",
-                                           Immunotherapy),
-                                     true = "PD1/L1 + CTLA4",
-                                     false = Immunotherapy),
-         Immunotherapy = if_else(grepl("Tremelimumab$|Ipilimumab$",
-                                           Immunotherapy),
-                                     true = "CTLA4",
-                                     false = Immunotherapy),
-         Immunotherapy = if_else(grepl("Nivolumab \\+ Chemotherapy",
-                                           Immunotherapy),
-                                     true = "Other",
-                                     false = Immunotherapy),
-         Immunotherapy = fct_relevel(Immunotherapy, c("PD1/L1", "CTLA4", "PD1/L1 + CTLA4", "Other")))
-
-P188_df <- 
-  P188_df %>%
-  mutate(Immunotherapy = if_else(grepl("Atezo|Durvalumab$|Nivolumab$|Pembro",
-                                           Immunotherapy),
-                                     true = "PD1/L1",
-                                     false = Immunotherapy),
-         Immunotherapy = if_else(grepl("Durvalumab \\+ Tremelimumab$|Nivolumab \\+ Ipilimumab$",
-                                           Immunotherapy),
-                                     true = "PD1/L1 + CTLA4",
-                                     false = Immunotherapy),
-         Immunotherapy = if_else(grepl("Tremelimumab$|Ipilimumab$",
-                                           Immunotherapy),
-                                     true = "CTLA4",
-                                     false = Immunotherapy),
-         Immunotherapy = if_else(grepl("Nivolumab \\+ Chemotherapy",
-                                           Immunotherapy),
-                                     true = "Other",
-                                     false = Immunotherapy),
-         Immunotherapy = fct_relevel(Immunotherapy, c("PD1/L1", "CTLA4", "PD1/L1 + CTLA4", "Other")))
-         
-```
 
 # Table 1 for CoRR
 ```{r}

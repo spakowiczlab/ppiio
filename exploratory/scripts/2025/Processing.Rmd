@@ -10,15 +10,17 @@ library(dplyr)
 library(tidyr)
 library(tidyverse)
 library(readxl)
+library(targets)
 ```
 
 # read in csv
 ```{r}
 CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/CoRR4684/2025-02-17/CoRR4684ARetrospecti_DATA_2025-02-17_2009.csv")
 P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/P188/2025-02-17/P188NSCLCIOTox111611_DATA_2025-02-17_1010.csv")
+meds <- read_excel("T:/Labs/Spakowicz/ppiio/data/raw/IW-meds/PLATELET_Variable_update.xlsx", sheet = 2, skip = 1)
 ```
 
-#create a cancer key 
+#create a cancer  and immunotherapy key 
 ```{r}
 cancer.copy <- c("1 non-small cell lung cancer
 2 small cell lung cancer
@@ -48,12 +50,52 @@ cancer.key <-
       gsub("\\d+ (.*)", "\\1", .),
     stringsAsFactors = FALSE
   )
+
+ionames <- data.frame(immunotherapy = c(1,2,3,4,5,6,7,8,9,10), 
+                      Immunotherapy = c("Nivolumab", "Pembrolizumab", 
+                                        "Atezolizumab", "Ipilimumab", 
+                                        "Nivolumab + Ipilimumab", 
+                                        "Durvalumab + Tremelimumab", 
+                                        "Tremelimumab", "Nivolumab + Chemotherapy",
+                                        "Durvalumab", "Other"),
+                      stringsAsFactors = FALSE)
 ```
+
+
+# functions 
+```{r}
+pull_class_assignments <- function(){
+  h2b <- read.table("T:/Labs/Spakowicz/ppiio/data/curated/h2b.txt", stringsAsFactors = F, sep = "\t") %>%
+    rename("medname" = "V1") %>%
+    mutate(medclass = "H2B")
+  ppi <- read.table("T:/Labs/Spakowicz/ppiio/data/curated/proton-pump-inhibitors.txt", stringsAsFactors = F, sep = "\t") %>%
+    rename("medname" = "V1") %>%
+    mutate(medclass = "PPI")
+  
+  complete.class <- bind_rows(h2b, ppi)
+  return(complete.class)
+}
+
+check_date_difference <- function(x){
+  tmp <- x %>%
+    mutate(start = as.Date(START_DATE),
+           ordering = as.Date(ORDERING_DATE)) %>%
+    dplyr::select(start, ordering) %>%
+    drop_na()
+  timedif <- tmp$ordering - tmp$start
+  summarize.dif <- summary(as.numeric(timedif))
+  return(summarize.dif)
+}
+
+class.key = pull_class_assignments()
+```
+
 
 
 # process CoRR4684
 ```{r}
 ppi_corr <- CoRR %>%
+  rename("MRN"="record_id") %>%
    filter(iostart != "") %>%
   filter(vitalstatus != 3) %>%
   mutate(vitalstatus = ifelse(vitalstatus == 1, 1, 0)) %>%
@@ -73,7 +115,7 @@ ppi_corr <- CoRR %>%
          Cancer = fct_relevel(Cancer, c("melanoma", "non-small cell lung cancer",
                                         "Other"))) %>%
   filter(immunotherapy != 11) %>%
-  drop_na(ppi, dob) %>%
+  drop_na(ppi, dob, iostart, date) %>%
   mutate(prior_chemo = ifelse(chemo_prior == 1, "yes", "no")) %>%
   mutate(eventdate = coalesce(deathdate, lastcontact)) %>%
   mutate(eventdate = as.POSIXct(eventdate, format = "%F"),
@@ -86,13 +128,75 @@ ppi_corr <- CoRR %>%
 ```
 
 ```{r}
-write.csv(ppi_corr,  "T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")
+pull_timing_info <- function(des.meds, meds.list, ord.offset, cdb, end.complete){
+
+  meds.members <- lapply(des.meds$medname, function(x) as.data.frame(cbind(GENERIC_NAME = unique(meds.list$GENERIC_NAME[grepl(x, meds.list$GENERIC_NAME, ignore.case = T)]),
+                                                               medname = x))) %>%
+    bind_rows() %>%
+    mutate(GENERIC_NAME = as.character(GENERIC_NAME),
+           medname = as.character(medname))
+  
+  des.meds.full <- meds.members %>%
+    left_join(des.meds) %>%
+    filter(!is.na(GENERIC_NAME))
+  
+  iostarts <- cdb %>%
+    select(MRN, iostart) %>%
+    mutate(iostart = as.Date(iostart))
+  
+  time.obj.start <- des.meds.full %>%
+    left_join(meds.list) %>%
+    mutate(MRN = as.character(MRN), 
+           START_DATE = as.Date(START_DATE),
+           ORDERING_DATE = as.Date(ORDERING_DATE),
+           END_DATE = as.Date(END_DATE)) %>%
+    select(MRN, GENERIC_NAME, START_DATE, ORDERING_DATE, END_DATE, REFILLS, medname, medclass) %>%
+    inner_join(iostarts) %>%
+    mutate(REFILLS = ifelse(is.na(REFILLS), 0, REFILLS),
+           med.dur = ifelse(end.complete == TRUE & !is.na(END_DATE) & !is.na(START_DATE),
+                           as.numeric(END_DATE - START_DATE + 1),
+                            (REFILLS+1) * 30),
+           days.to.io = ifelse(is.na(START_DATE),
+                               as.numeric(ORDERING_DATE - iostart) - ord.offset,
+                               as.numeric(START_DATE - iostart)),
+           stop.date = days.to.io + med.dur - 1,
+           )
+  
+  relative.days.covered <- lapply(1:nrow(time.obj.start), function(i) paste(time.obj.start$days.to.io[i]:time.obj.start$stop.date[i], collapse = ","))
+  
+  time.obj.start$relative.days.covered <- unlist(relative.days.covered)
+  
+  time.class <- time.obj.start %>%
+    group_by(MRN, medclass) %>%
+    summarise(alldays = paste(relative.days.covered, collapse = ","), .groups = 'drop')
+  time.class.unq <- lapply(1:nrow(time.class), function(x) paste(unique(unlist(strsplit(time.class$alldays[x], split = ","))), collapse = ","))
+  time.class$alldays <- unlist(time.class.unq)
+  time.class <- time.class %>%
+    mutate(medclass = paste0(medclass, ".days.to.iostart")) %>%
+    spread(key = medclass, value = alldays)
+  
+  corr.addtime <- cdb %>%
+    left_join(time.class)
+  
+  return(corr.addtime)
+
+}
+
 ```
+
+```{r}
+start.ordering.offset = check_date_difference(meds)
+
+ppi_corr = pull_timing_info(bind_rows(class.key), meds, 
+                                 start.ordering.offset["Median"], ppi_corr, F)
+```
+
 
 
 # Process P188
 ```{r}
 ppi_P188 <- P188 %>%
+  rename("MRN"="record_id") %>%
   filter(cancer == 1) %>%
   filter(staging == 4) %>%
   filter(iostart != "")  %>%
@@ -106,13 +210,123 @@ ppi_P188 <- P188 %>%
          dob = as.Date(dob)) %>%
   mutate(age=as.numeric(as.character(floor((iostart-dob)/365))))%>%
    mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
- drop_na(ppi, chemo_prior, age) %>%
-  mutate(prior_chemo = ifelse(chemo_prior == 1, "yes", "no"))
+ drop_na(ppi, chemo_prior, dob,date) %>%
+  mutate(prior_chemo = ifelse(chemo_prior == 1, "yes", "no")) %>%
+  mutate(eventdate = coalesce(deathdate, lastcontact)) %>%
+  mutate(eventdate = as.POSIXct(eventdate, format = "%F"),
+         iostart = as.POSIXct(iostart, format = "%F"),
+         chemo_date = as.POSIXct(chemo_date, format = "%F")) %>%
+  mutate(days = eventdate - iostart) %>%
+ mutate(chemo_timing = as.numeric(difftime(iostart, chemo_date, units = "days"))) %>%
+  mutate(chemo_greater_one_year = ifelse(chemo_timing >366, 1, 0))
+```
+
+
+
+# Immunotherapy labeling
+```{r}
+ppi_corr <- 
+  ppi_corr %>%
+  left_join(ionames) %>%
+  mutate(Immunotherapy = if_else(grepl("Atezo|Durvalumab$|Nivolumab$|Pembro",
+                                           Immunotherapy),
+                                     true = "PD1/L1",
+                                     false = Immunotherapy),
+         Immunotherapy = if_else(grepl("Durvalumab \\+ Tremelimumab$|Nivolumab \\+ Ipilimumab$",
+                                           Immunotherapy),
+                                     true = "PD1/L1 + CTLA4",
+                                     false = Immunotherapy),
+         Immunotherapy = if_else(grepl("Tremelimumab$|Ipilimumab$",
+                                           Immunotherapy),
+                                     true = "CTLA4",
+                                     false = Immunotherapy),
+         Immunotherapy = if_else(grepl("Nivolumab \\+ Chemotherapy",
+                                           Immunotherapy),
+                                     true = "Other",
+                                     false = Immunotherapy),
+         Immunotherapy = fct_relevel(Immunotherapy, c("PD1/L1", "CTLA4", "PD1/L1 + CTLA4", "Other")))
+
+ppi_P188 <- 
+ ppi_P188 %>%
+  left_join(ionames) %>%
+  mutate(Immunotherapy = if_else(grepl("Atezo|Durvalumab$|Nivolumab$|Pembro",
+                                           Immunotherapy),
+                                     true = "PD1/L1",
+                                     false = Immunotherapy),
+         Immunotherapy = if_else(grepl("Durvalumab \\+ Tremelimumab$|Nivolumab \\+ Ipilimumab$",
+                                           Immunotherapy),
+                                     true = "PD1/L1 + CTLA4",
+                                     false = Immunotherapy),
+         Immunotherapy = if_else(grepl("Tremelimumab$|Ipilimumab$",
+                                           Immunotherapy),
+                                     true = "CTLA4",
+                                     false = Immunotherapy),
+         Immunotherapy = if_else(grepl("Nivolumab \\+ Chemotherapy",
+                                           Immunotherapy),
+                                     true = "Other",
+                                     false = Immunotherapy),
+         Immunotherapy = fct_relevel(Immunotherapy, c("PD1/L1", "CTLA4", "PD1/L1 + CTLA4", "Other")))
+         
 ```
 
 ```{r}
-write.csv(ppi_P188, "T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted.csv")
+combine_DO_dbs <- function(corr, p118){
+  concerning.pats <- intersect(corr$MRN, p118$MRN)
+  corr.concer <- corr %>%
+    filter(MRN %in% concerning.pats) %>%
+    arrange(MRN) %>%
+    select(-days, -lastcontact, -deathdate, -vitalstatus, -dob, -iostart, date) %>%
+    mutate_all(as.character)
+  p118.concer <- p118 %>%
+    filter(MRN %in% concerning.pats) %>%
+    arrange(MRN) %>%
+    mutate_all(as.character)
+  
+  
+  cols.to.check <- intersect(colnames(p118.concer), colnames(corr.concer))
+  
+  for(i in cols.to.check){
+    for(j in 1:nrow(p118.concer)){
+    p118.concer[j,i] <- ifelse(is.na(p118.concer[j,i]) | p118.concer[j,i] == "", as.character(corr.concer[j,i]),
+                               as.character(p118.concer[j,i]))
+    }
+  }
+  
+
+  corr.in <- corr %>%
+    mutate_all(as.character) %>%
+    filter(!MRN %in% as.character(concerning.pats))
+  p118.in <- p118 %>%
+    mutate_all(as.character)%>%
+    filter(!MRN %in% as.character(concerning.pats))
+  
+  cmbined.db <- p118.concer %>%
+    # mutate_all(as.character) %>%
+    bind_rows(corr.in) %>%
+    bind_rows(p118.in)
+  
+  return(cmbined.db)
+}
+
+DO.combined = combine_DO_dbs(ppi_corr, ppi_P188)
 ```
+
+
+# Removing duplicate patients 
+```{r}
+common_rows <- intersect(ppi_corr$MRN, ppi_P188$MRN)
+ppi_corr <- ppi_corr[!ppi_corr$MRN %in% common_rows, ]
+```
+
+# Write as CSV
+```{r}
+write.csv(ppi_corr,  "T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")
+write.csv(ppi_P188, "T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted.csv")
+write.csv(DO.combined,"T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/DO_Combined_formatted.csv" )
+```
+
+
+
 
 
 
