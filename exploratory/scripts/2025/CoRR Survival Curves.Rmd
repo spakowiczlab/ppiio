@@ -105,15 +105,13 @@ combined_less_than_one_year
 
 
 ```{r}
-
-ggsave("../../figures/2025/PPI_all_cancers_KM.svg", plot = combined_all_surv, device = "svg", width = 7, height = 4)
-ggsave("../../figures/2025/PPI_first_line_KM.svg", plot = combined_first_line, device = "svg", width = 7, height = 4)
-ggsave("../../figures/2025/PPI_second_line_KM.svg", plot = combined_second_line, device = "svg", width = 7, height = 4)
-ggsave("../../figures/2025/PPI_no_chemo_KM.svg", plot = combined_no_chemo, device = "svg", width = 7, height = 4)
-ggsave("../../figures/2025/PPI_chemo_KM.svg", plot = combined_chemo, device = "svg", width = 7, height = 4)
-ggsave("../../figures/2025/PPI_more_than_one_year_KM.svg", plot = combined_more_than_one_year, device = "svg", width = 7, height = 4)
-ggsave("../../figures/2025/PPI_less_than_one_year.svg", plot = combined_less_than_one_year, device = "svg", width = 7, height = 4)
-
+ggsave("../../figures/2025/PPI_all_cancers_KM.svg", plot = combined_all_surv, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_first_line_KM.svg", plot = combined_first_line, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_second_line_KM.svg", plot = combined_second_line, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_no_chemo_KM.svg", plot = combined_no_chemo, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_chemo_KM.svg", plot = combined_chemo, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_more_than_one_year_KM.svg", plot = combined_more_than_one_year, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_less_than_one_year.svg", plot = combined_less_than_one_year, device = "svg", width = 6, height = 6)
 ```
 
 

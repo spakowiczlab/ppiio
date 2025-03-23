@@ -1,0 +1,225 @@
+---
+title: "Mitox data review"
+author: "Anna Petouhoff"
+date: "2025-03-11"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+library(ggrepel)
+library(tidyverse)
+library(ggfortify)
+```
+
+# load data 
+```{r}
+load("../../data/Mitox/ra-long.rds")
+load("../../data/Mitox/clinical.rds")
+load("../../data/Mitox/mitox_microbiome_metadata.rds")
+load("../../data/Mitox/counts-wide.rds")
+load("../../data/Mitox/phylum-labels.rds")
+load("../../data/Mitox/taxonomy-key.rds")
+load("../../data/Mitox/ANCOM-BC2_response_baseline.RData")
+```
+
+
+# Figure Feature
+```{r}
+colors <- c("#6699CC", "#999933", "#CC6677","#44AA99","#DDCC77","#882255")
+colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2", "cornflowerblue", "deeppink4") 
+
+# Response ID's
+resp.id <- mic.meta %>%
+  left_join(demographics) %>%
+  select(sample, Days, PPI, Response) %>%
+  mutate(PPI = if_else(is.na(PPI), 'No', as.character(PPI)))
+
+# baseline samples 
+base.samps <- mic.meta %>% 
+  group_by(`Patient Id`) %>%
+  arrange(Days) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  filter(abs(Days) <= 10)
+```
+
+# Stacked Bar
+```{r}
+phyl.ra <- ra.l %>%
+  filter(grepl("p__", microbe))
+
+top.phyl <- phyl.ra %>%
+  group_by(microbe) %>%
+  summarise(med.abun = median(RelAbun)) %>%
+  arrange(desc(med.abun)) %>%
+  filter(med.abun > 0)
+
+phyl.ra <- phyl.ra %>%
+  mutate(Phylum = ifelse(microbe %in% top.phyl$microbe, gsub("p__", "", microbe), 
+                         "Other")) %>%
+  left_join(resp.id)
+
+# reorder samples by the total relative abundance of Firmicutes
+phyl.ra <- phyl.ra %>%
+  group_by(sample) %>%
+  mutate(Firmicutes_Abundance = sum(RelAbun[Phylum == "Firmicutes"], na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(sample = fct_reorder(sample, Firmicutes_Abundance))
+
+# order of microbes with 'other' last
+phyl.ra <- phyl.ra %>%
+  mutate(Phylum = factor(Phylum, levels = c(
+    "Firmicutes", 
+    setdiff(unique(Phylum), c("Firmicutes", "Other")), 
+    "Other")))
+
+phyl.ra %>%
+  filter(sample %in% base.samps$sample) %>%
+  ggplot(aes(x = sample, y = RelAbun, fill = Phylum)) +
+  geom_bar(position = "fill", stat = "identity") +
+  scale_fill_manual(values = colors) + 
+  labs(x = "", y = "") +
+  theme_minimal(base_size = 9) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_blank(),
+    panel.grid.major = element_blank(),
+    legend.position = "top",
+    legend.box = "horizontal",
+    legend.title = element_blank(),
+    strip.placement = "outside", # Moves facet labels outside
+    strip.background = element_blank(), # Optional: Removes the background of facet labels
+    strip.text.x = element_text(size = 9) # Adjusts facet label text size
+  ) +
+  facet_grid(~PPI, scales = "free_x", space = "free", switch = "x") +
+  guides(fill = guide_legend(ncol = 6, nrow = 1, byrow = TRUE))
+
+ggsave("../../figures/2025/mitox/stackedbar.png", height = 4, width = 6)
+```
+
+
+#Volcano Plot
+```{r}
+phyl_labels <- phyl_labels %>%
+  mutate(taxon = substr(microbe, 4, nchar(microbe)))
+
+res.recist <- res.recist %>%
+  left_join(phyl_labels) %>%
+  mutate(Phylum = ifelse(q_PPIYes < 0.05 & abs(lfc_PPIYes) > 1, 
+                         ifelse(Phylum %in% phyl.ra$Phylum, Phylum, "Other"), NA),
+         taxon = gsub("_", " ", taxon),
+        Phylum = factor(Phylum, levels = c(
+    "Firmicutes", "Bacteroidota", "Actinobacteria", "Proteobacteria", "Other")),
+    label = taxon )
+
+colors <- c("#6699CC", "#999933", "#CC6677","#44AA99","#882255")
+colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2", "deeppink4") 
+```
+```{r}
+g <- res.recist %>%
+  filter(q_PPIYes < 1) %>%
+  ggplot(aes(x=lfc_PPIYes, y=-log10(q_PPIYes), label = label)) + 
+  geom_point(aes(x=lfc_PPIYes, y=-log10(q_PPIYes), color = Phylum)) + 
+  geom_text_repel(size = 2) +
+  scale_color_manual(values = colors, na.value = "honeydew3") +
+  theme_bw(base_size = 9) +
+  xlab("log2foldchange") +
+  ylab("log10(p-value)") +
+  theme(legend.position =  "none") + # legend matches stacked bar 
+  guides(color = guide_legend(na.translate = FALSE))
+
+g
+
+ggsave("../../figures/2025/mitox/volcanoplot.png", height = 4, width = 7, dpi = 300)
+```
+
+# structural zero box blot 
+```{r}
+counts <- counts.w %>%
+  pivot_longer(!microbe, names_to = "sample", values_to = "est.reads") %>%
+  filter(grepl("s__", microbe)) %>%
+  mutate(microbe = str_remove(microbe, "^[a-z]__"))
+
+r <- counts %>%
+  right_join(base.samps) %>%
+  left_join(demographics) %>%
+
+  filter(PPI == "YES",
+         microbe %in% (struct0.recist %>% filter(`structural_zero (PPI = Yes)` &
+                                                 !`structural_zero (PPI = No)`))$taxon) %>%
+  select(sample, microbe, est.reads)
+
+r.top <- r %>%
+  group_by(microbe) %>%
+  summarize(total.nonzero = sum(est.reads > 0),
+            percent.nonzero = total.nonzero/n_distinct(sample),
+            mean.counts = mean(est.reads)) %>%
+  ungroup() 
+
+nr <- counts %>%
+  right_join(base.samps) %>%
+  left_join(demographics) %>%
+  filter(PPI == "No",
+         microbe %in% (struct0.recist %>% filter(`structural_zero (PPI = Yes)` &
+                                                 !`structural_zero (PPI = No)`))$taxon) %>%
+  select(sample, microbe, est.reads) 
+
+nr.top <- nr %>%
+  group_by(microbe) %>%
+    summarize(total.nonzero = sum(est.reads > 0),
+            percent.nonzero = total.nonzero/n_distinct(sample),
+            mean.counts = mean(est.reads)) %>%
+  ungroup()
+
+```
+
+```{r}
+top10 <- rbind(r.top, nr.top) %>%
+  filter(percent.nonzero > 0.15) %>%
+  arrange(desc(mean.counts)) %>%
+  slice_head(n=10)
+
+box.in <- rbind(r, nr) %>%
+  filter(microbe %in% top10$microbe) %>%
+  left_join(mic.meta) %>%
+  left_join(demographics) %>%
+  dplyr::rename(taxon = microbe) %>%
+  left_join(phyl_labels) %>%
+  mutate(Phylum = ifelse(Phylum %in% phyl.ra$Phylum, Phylum, "Other"),
+         taxon = gsub("_", " ", taxon))
+
+
+colors <- c("#999933","#6699CC","#44AA99")
+colors <- c("darkgoldenrod2", "cyan4", "salmon2")
+```
+```{r}
+box.in %>%
+  ggplot(aes(x = taxon, y=log(est.reads), fill = Phylum)) +
+  geom_boxplot(width = 0.5) +
+  geom_jitter() + 
+  scale_fill_manual(values = colors) +
+  facet_grid(~ PPI, scales = "free", space = "free") +
+  theme_bw(base_size = 9) +
+  theme(
+    panel.spacing = unit(1, "lines"), 
+    axis.text.x = element_text(angle = 45, hjust = 1),  
+    strip.text = element_text(size = 9),
+    legend.position = "none"
+  ) +
+  xlab("")
+
+ggsave("../../figures/2025/mitox/s0-boxplots.png", height = 4, width = 7, dpi = 300)
+
+```
+
+
+
+
+
+
+
+
+
+

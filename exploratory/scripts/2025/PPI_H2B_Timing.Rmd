@@ -171,7 +171,7 @@ ggplot(data = allpvaltime, aes(x = leftanchor, y = hazard.ratio)) +
 
 # Save Plot
 ```{r}
-ggsave("../../figures/PPI_H2B_Timing.png")
+ggsave("../../figures/2025/PPI_H2B_Timing.png")
 ```
 ```
 

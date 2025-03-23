@@ -115,7 +115,7 @@ ppi_corr <- CoRR %>%
          Cancer = fct_relevel(Cancer, c("melanoma", "non-small cell lung cancer",
                                         "Other"))) %>%
   filter(immunotherapy != 11) %>%
-  drop_na(ppi, dob, iostart, date) %>%
+  drop_na(ppi, dob, iostart) %>%
   mutate(prior_chemo = ifelse(chemo_prior == 1, "yes", "no")) %>%
   mutate(eventdate = coalesce(deathdate, lastcontact)) %>%
   mutate(eventdate = as.POSIXct(eventdate, format = "%F"),
@@ -210,7 +210,7 @@ ppi_P188 <- P188 %>%
          dob = as.Date(dob)) %>%
   mutate(age=as.numeric(as.character(floor((iostart-dob)/365))))%>%
    mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
- drop_na(ppi, chemo_prior, dob,date) %>%
+ drop_na(ppi, dob,date) %>%
   mutate(prior_chemo = ifelse(chemo_prior == 1, "yes", "no")) %>%
   mutate(eventdate = coalesce(deathdate, lastcontact)) %>%
   mutate(eventdate = as.POSIXct(eventdate, format = "%F"),
