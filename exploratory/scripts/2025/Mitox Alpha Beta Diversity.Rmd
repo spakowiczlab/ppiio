@@ -1,0 +1,91 @@
+---
+title: "Mitox Alpha Beta Diversity"
+author: "Anna Petouhoff"
+date: "2025-04-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(ggplot2)
+library(ROCR)
+library(gdata)
+library(vegan)
+library(ggpubr)
+```
+
+```{r}
+load("../../data/Mitox/ra-long.rds")
+load("../../data/Mitox/ra-wide.rds")
+load("../../data/Mitox/clinical.rds")
+load("../../data/Mitox/mitox_microbiome_metadata.rds")
+load("../../data/Mitox/counts-long.rds")
+```
+
+```{r}
+# Prepare clinical data
+# baseline samples 
+base.samps <- mic.meta %>% 
+  group_by(`Patient Id`) %>%
+  arrange(Days) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  filter(abs(Days) <= 10)
+
+# Response ID's
+resp.id <- mic.meta %>%
+  left_join(demographics) %>%
+  select(sample, PPI) %>%
+  filter(sample %in% base.samps$sample) %>%
+  mutate(PPI = if_else(is.na(PPI), 'No', as.character(PPI)))
+
+```
+
+# calculate alpha diversity with RA  
+# shannon
+```{r}
+ra.in <- ra.l %>%
+  filter(grepl("s__", microbe),
+         sample %in% resp.id$sample)
+
+div.ra <- ra.in %>% 
+  group_by(sample) %>%
+  summarize(Shannon = diversity(RelAbun, index = "shannon"))
+
+div.ra.resp <- div.ra %>%
+  left_join(resp.id) %>%
+  select(-sample) %>% 
+  pivot_longer(!PPI,
+    names_to = "Signature",
+               values_to = "Score") %>%
+  mutate(data.type = "RA")
+
+div.ra.resp %>%
+  ggplot(aes(x=PPI, y = Score)) +
+  geom_boxplot(aes(fill = PPI)) +
+  scale_fill_manual(values=c("cornflowerblue", "deeppink4")) +
+  labs(title = "Alpha Diversity", x= "PPI Use", y = "Shannon Index")
+```
+
+
+#calculate beta diversity
+```{r}
+wide_data<- ra.in %>%
+  pivot_wider(names_from = microbe,
+              values_from = RelAbun,
+              values_fill = list(Relabun = 0))
+
+bc_dist <- vegdist(wide_data[,-1], method = "bray")
+
+
+pca_result <- prcomp(bc_dist, scale. = FALSE)
+scores <- data.frame(pca_result$x)
+scores$Sample <- rownames(scores)
+ggplot(scores, aes(x = PC1, y=PC2)) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  labs(title = "PCA Plot", x = "PC1", y = "PC2")
+```
+

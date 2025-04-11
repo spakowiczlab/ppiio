@@ -58,13 +58,10 @@ combined_chemo
 # PPI use and OS if patient recieved chemo more than 1 year
 
 ```{r}
-prior_chemotherapy <- P188 %>%
-  drop_na(chemo_greater_one_year)
-
-more_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = prior_chemotherapy[prior_chemotherapy$chemo_greater_one_year == 1,])
+more_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = P188[P188$chemo_greater_one_year == 1,]) 
 
 more_than_one_year_plot <- ggsurvplot(more_than_one_year, pval = T, risk.table = T) +
-  ggtitle("P188: PPI use and OS if patient recieved chemo more than 1 year")
+  ggtitle("P188: PPI use and OS chemo more than 1 year")
 
 combined_more_than_one_year <- more_than_one_year_plot$plot / more_than_one_year_plot$table + plot_layout(heights = c(3, 1))
 combined_more_than_one_year
@@ -72,10 +69,10 @@ combined_more_than_one_year
 
 # PPI use and OS if patient recieved chemo less than 1 year
 ```{r}
-less_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = prior_chemotherapy[prior_chemotherapy$chemo_greater_one_year == 0,])
+less_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = P188[P188$chemo_greater_one_year == 0,])
 
 less_than_one_year_plot <- ggsurvplot(less_than_one_year, pval = T, risk.table = T) +
-  ggtitle("P188: PPI use and OS if patient recieved chemo less than 1 year")
+  ggtitle("P188: PPI use and OS chemo less than 1 year")
 
 combined_less_than_one_year <- less_than_one_year_plot$plot / less_than_one_year_plot$table + plot_layout(heights = c(3, 1))
 combined_less_than_one_year

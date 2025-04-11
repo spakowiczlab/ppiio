@@ -99,7 +99,7 @@
 <line x1='262.57' y1='46.88' x2='276.39' y2='46.88' style='stroke-width: 2.13; stroke: #00BFC4; stroke-linecap: butt;' />
 <text x='230.10' y='50.46' style='font-size: 10.00px; font-family: "Arial";' textLength='24.76px' lengthAdjust='spacingAndGlyphs'>ppi=0</text>
 <text x='284.10' y='50.46' style='font-size: 10.00px; font-family: "Arial";' textLength='24.76px' lengthAdjust='spacingAndGlyphs'>ppi=1</text>
-<text x='62.49' y='22.91' style='font-size: 16.00px; font-family: "Arial";' textLength='468.67px' lengthAdjust='spacingAndGlyphs'>P188: PPI use and OS if patient recieved chemo more than 1 year</text>
+<text x='62.49' y='22.91' style='font-size: 16.00px; font-family: "Arial";' textLength='338.82px' lengthAdjust='spacingAndGlyphs'>P188: PPI use and OS chemo more than 1 year</text>
 </g>
 <defs>
   <clipPath id='cpNjIuNDl8NDIwLjU0fDMyNS43M3wzODguMDk='>
@@ -138,6 +138,6 @@
 <text x='404.27' y='402.07' text-anchor='middle' style='font-size: 12.00px; font-family: "Arial";' textLength='26.70px' lengthAdjust='spacingAndGlyphs'>2000</text>
 <text x='241.52' y='417.60' text-anchor='middle' style='font-size: 14.00px; font-family: "Arial";' textLength='30.58px' lengthAdjust='spacingAndGlyphs'>Time</text>
 <text transform='translate(21.48,356.91) rotate(-90)' text-anchor='middle' style='font-size: 14.00px; font-family: "Arial";' textLength='37.34px' lengthAdjust='spacingAndGlyphs'>Strata</text>
-<text x='62.49' y='316.39' style='font-size: 16.00px; font-family: "Arial";' textLength='468.67px' lengthAdjust='spacingAndGlyphs'>P188: PPI use and OS if patient recieved chemo more than 1 year</text>
+<text x='62.49' y='316.39' style='font-size: 16.00px; font-family: "Arial";' textLength='338.82px' lengthAdjust='spacingAndGlyphs'>P188: PPI use and OS chemo more than 1 year</text>
 </g>
 </svg>

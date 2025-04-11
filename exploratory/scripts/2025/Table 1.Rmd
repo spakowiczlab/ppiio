@@ -20,6 +20,9 @@ library(readxl)
 ```{r}
 CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")
 P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted.csv")
+load("../../data/Mitox/clinical.rds")
+load("../../data/Mitox/mitox_microbiome_metadata.rds")
+iobio <- read_excel("T:/Labs/Spakowicz/Iobio/data/PPI_Microbiome data set 01232025_deID.xlsx")
 ```
 
 
@@ -72,5 +75,53 @@ table2 <- CreateTableOne(vars = listVars2,
 tbl2 <- print(table2, nonnormal = "follow_up_time")
 write.csv(tbl2, "../../tables/table2.csv")
 ```
+#Table 1 for Mitox 
+```{r}
+baseline <- mic.meta %>%
+  group_by(`Patient Id`) %>%
+  arrange(Days) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  filter(abs(Days) <= 10) 
+
+demo.filt <- demographics %>%
+  filter(`Patient Id` %in% baseline$`Patient Id`) %>%
+   mutate(PPI = if_else(is.na(PPI), 'No', as.character(PPI)))
+```
+
+```{r}
+listVars3 <- c("Age", "Sex", "Treatment","Stage")
+table3 <- CreateTableOne(vars = listVars3,
+                         data = demo.filt,
+                         strata = c("PPI"))
+tbl3 <- print(table3)
+write.csv(tbl3, "../../tables/table_mitox.csv")
+```
+
+#Table 1 for iobio
+
+```{r}
+iobio <- iobio %>%
+  rename(Immunotherapy ="Type of immunotherapy",
+         ECOG = "ECOG at start date", 
+         Cancer = "What type of cancer does the patient have?",
+         VitalStatus = "What is the patient's vital status? 1-deceaased")
+iobio$Cancer <- as.factor(iobio$Cancer)
+```
+
+
+```{r}
+listVars4 <- c("Gender", "VitalStatus","ECOG", "Immunotherapy")
+catVars4 <- c("Gender", "VitalStatus","Immunotherapy", "ECOG")
+table4 <- CreateTableOne(vars = listVars4,
+                         data = iobio,
+                         factorVars = catVars4,
+                         strata = c("PPI Y/N"))
+tbl4 <- print(table4)
+
+
+write.csv(tbl4, "../../tables/table_iobio.csv")
+```
+
 
 

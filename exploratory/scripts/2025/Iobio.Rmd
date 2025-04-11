@@ -1,0 +1,94 @@
+---
+title: "Iobio Correlation"
+author: "Anna Petouhoff"
+date: "2025-03-26"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(broom)
+library(Hmisc)
+library(ggplot2)
+```
+
+# load data
+```{r}
+micro <- read.csv("../../data/iobio/2023-12-07_mpa-aggregate.csv")
+cytof <- readRDS("../../data/iobio/cytof_normalized.RDS")
+```
+
+# micro data to species level
+```{r}
+species <- micro[grep("s_", micro$Taxonomy),]
+species <- species[-grep("t_", species$Taxonomy),]
+
+delimiter <- "s_"
+species$Taxonomy <- sub(paste0(".*", delimiter), "", species$Taxonomy)
+species <- species[,-which(names(species) %in% c("TaxNum","Alternative.Tax"))]
+
+species = reshape(data= species,
+                       idvar= "sample",
+                       timevar= "Taxonomy",
+                       direction = "wide")
+species[is.na(family)] <- 0
+row_names <- c("31 _ 0", "33 _ 0", "34 _ 0", "41 _ 0", "26 _ 0", "28 _ 0", "29 _ 0", "31 _ 28", "32 _ 0", "32 _ 22", "33 _ 21", "34 _ 23")
+row.names(species) <- row_names
+species <- species[,-1]
+```
+
+# merging cytof and micro data
+```{r}
+merged <- merge(species, cytof, by = "row.names", all = FALSE)
+rownames(merged) <- merged[,1]
+cytof <- merged[,-1:-634]
+```
+
+# isolated microbes of interest 
+```{r}
+interest <- merged[,-1:-9]
+interest <- interest[,-2:-8]
+interest <- interest[,-3:-691]
+interest[is.na(interest)] <- 0
+```
+
+# adding PPI use information
+```{r}
+PPI <- c("N", "N", "Y", "N", "N", NA, NA, "Y", "Y", "Y", "Y", "N")
+merged$PPI <- PPI
+
+merged <- merged %>%
+  mutate_at(c("RelAbun._Clostridium_sp_AT4", "RelAbun._Enterocloster_clostridioformis"), ~replace(.,is.na(.), 0))
+```
+
+# filtering out infiniate and NAs in cytof 
+```{r}
+filter <- function(df) {
+  df %>%
+    select(where(~all(is.finite(.)) && sum(!is.na(.)) > 1))
+}
+cytof <- filter(cytof)
+```
+
+
+# running correction 
+```{r}
+corr.results <- lapply(colnames(interest), function(x)
+  lapply(colnames(cytof), function(y) cor.test(interest[[x]], cytof[[y]],
+                                               method = "spearman", exact = F) %>%
+           tidy() %>%
+           mutate(microbe = x, cytof = y) %>%
+           bind_rows())) %>%
+  bind_rows() %>%
+  mutate(p.adj = p.adjust(p.value, method = "fdr"))
+```
+
+
+
+
+```{r}
+ggplot(merged, aes(x=`TE CD4` , y=RelAbun._Enterocloster_clostridioformis)) + geom_point() + stat_smooth(method = "lm", aes(group =1)) + labs(x = "TE CD4 Count", y = "Relative Abundance of Enterocloster clostridioformis")
+```
+
