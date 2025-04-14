@@ -50,11 +50,17 @@ ra.in <- ra.l %>%
   filter(grepl("s__", microbe),
          sample %in% resp.id$sample)
 
-div.ra <- ra.in %>% 
-  group_by(sample) %>%
-  summarize(Shannon = diversity(RelAbun, index = "shannon"))
+ra.wide <- ra.in %>%
+  pivot_wider(names_from = microbe, values_from = RelAbun, values_fill = 0)
 
-div.ra.resp <- div.ra %>%
+
+shannon.index <- ra.wide %>%
+  column_to_rownames("sample") %>%         
+  diversity(index = "shannon") %>%
+ tibble::enframe(name = "sample", value = "Shannon")
+
+
+div.ra.resp <- shannon.index %>%
   left_join(resp.id) %>%
   select(-sample) %>% 
   pivot_longer(!PPI,
@@ -62,11 +68,14 @@ div.ra.resp <- div.ra %>%
                values_to = "Score") %>%
   mutate(data.type = "RA")
 
-div.ra.resp %>%
+alpha_diversity <- div.ra.resp %>%
   ggplot(aes(x=PPI, y = Score)) +
   geom_boxplot(aes(fill = PPI)) +
   scale_fill_manual(values=c("cornflowerblue", "deeppink4")) +
-  labs(title = "Alpha Diversity", x= "PPI Use", y = "Shannon Index")
+  labs(title = "Alpha Diversity", x= "PPI Use", y = "Shannon Index") +
+   stat_compare_means(method = "t.test")
+
+ggsave("../../figures/2025/mitox/alpha_diversity.png", plot= alpha_diversity, height = 4, width = 6)
 ```
 
 
@@ -78,14 +87,39 @@ wide_data<- ra.in %>%
               values_fill = list(Relabun = 0))
 
 bc_dist <- vegdist(wide_data[,-1], method = "bray")
+```
 
-
+```{r}
 pca_result <- prcomp(bc_dist, scale. = FALSE)
 scores <- data.frame(pca_result$x)
-scores$Sample <- rownames(scores)
-ggplot(scores, aes(x = PC1, y=PC2)) +
+scores$sample <- rownames(scores)
+
+scores <- pca_result$x %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "Sample")
+scores$PPI <- resp.id$PPI
+
+beta_diversity <- ggplot(scores, aes(x = PC1, y = PC2, color = PPI)) +
   geom_point(size = 3) +
   theme_minimal() +
   labs(title = "PCA Plot", x = "PC1", y = "PC2")
+
+ggsave("../../figures/2025/mitox/beta_diversity.png", plot= beta_diversity, height = 4, width = 6)
+```
+
+```{r}
+wide_data$PPI <- resp.id$PPI
+abundance <- ra.wide[,-1]
+```
+
+
+
+```{r}
+set.seed(9)
+adonis2(bc_dist ~ PPI, data = wide_data, method = "bray")
+```
+
+```{r}
+adonis2(abundance ~ PPI, data = wide_data, method = "bray")
 ```
 
