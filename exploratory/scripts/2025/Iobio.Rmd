@@ -35,30 +35,35 @@ species = reshape(data= species,
                        direction = "wide")
 species[is.na(family)] <- 0
 row_names <- c("31 _ 0", "33 _ 0", "34 _ 0", "41 _ 0", "26 _ 0", "28 _ 0", "29 _ 0", "31 _ 28", "32 _ 0", "32 _ 22", "33 _ 21", "34 _ 23")
-row.names(species) <- row_names
-species <- species[,-1]
+species$'Patient ID' <- row_names
+resp.id <- species[,-2:-632]
+resp.id <-resp.id[-c(8,10,11,12),]
+
+new.species <- species[,-1]
 ```
 
 # merging cytof and micro data
 ```{r}
-merged <- merge(species, cytof, by = "row.names", all = FALSE)
+merged <- merge(new.species, cytof, by = "Patient ID", all = FALSE)
 rownames(merged) <- merged[,1]
 cytof <- merged[,-1:-634]
 ```
 
-# isolated microbes of interest 
+# isolated microbes of interest and baseline samples
 ```{r}
 interest <- merged[,-1:-9]
 interest <- interest[,-2:-8]
 interest <- interest[,-3:-691]
 interest[is.na(interest)] <- 0
+interest <- interest[-c(5,7,9,11),]
+cytof <- cytof[-c(5,7,9,11),]
 ```
 
 # adding PPI use information
 ```{r}
 PPI <- c("N", "N", "Y", "N", "N", NA, NA, "Y", "Y", "Y", "Y", "N")
 merged$PPI <- PPI
-
+merged <- merged[-c(5,7,9,11),]
 merged <- merged %>%
   mutate_at(c("RelAbun._Clostridium_sp_AT4", "RelAbun._Enterocloster_clostridioformis"), ~replace(.,is.na(.), 0))
 ```
@@ -73,7 +78,7 @@ cytof <- filter(cytof)
 ```
 
 
-# running correction 
+# running correlation
 ```{r}
 corr.results <- lapply(colnames(interest), function(x)
   lapply(colnames(cytof), function(y) cor.test(interest[[x]], cytof[[y]],
@@ -85,10 +90,72 @@ corr.results <- lapply(colnames(interest), function(x)
   mutate(p.adj = p.adjust(p.value, method = "fdr"))
 ```
 
-
-
-
+#Plotting significant correlation
 ```{r}
 ggplot(merged, aes(x=`TE CD4` , y=RelAbun._Enterocloster_clostridioformis)) + geom_point() + stat_smooth(method = "lm", aes(group =1)) + labs(x = "TE CD4 Count", y = "Relative Abundance of Enterocloster clostridioformis")
 ```
 
+
+
+#stacked bar plot
+```{r}
+resp.id$PPI <- merged$PPI
+phyl.ra <- micro[grep("p__", micro$Taxonomy),]
+phyl.ra <- phyl.ra[-grep("c__", phyl.ra$Taxonomy),]
+
+top.phyl <- phyl.ra %>%
+  group_by(Taxonomy) %>%
+  summarise(med.abun = median(RelAbun, na.rm = TRUE)) %>%
+  arrange(desc(med.abun)) 
+top.phyl <- subset(top.phyl, med.abun > 0.85)
+
+
+phyl.ra <- phyl.ra %>%
+  mutate(Phylum = ifelse(Taxonomy %in% top.phyl$Taxonomy, gsub("p__", "", Taxonomy), 
+                         "Other")) %>% 
+  left_join(resp.id)
+phyl.ra$Phylum <- sub("^[^|]*\\|", "", phyl.ra$Phylum)
+
+# reorder samples by the total relative abundance of Firmicutes
+phyl.ra <- phyl.ra %>%
+  group_by(sample) %>%
+  mutate(Firmicutes_Abundance = sum(RelAbun[Phylum == "Firmicutes"], na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(sample = fct_reorder(sample, Firmicutes_Abundance))
+
+# order of microbes with 'other' last
+phyl.ra <- phyl.ra %>%
+  mutate(Phylum = factor(Phylum, levels = c(
+    "Firmicutes", 
+    setdiff(unique(Phylum), c("Firmicutes", "Other")), 
+    "Other")))
+
+samples_to_remove <- c("DSpakowicz005_31-230123-1_R255_S4", "DSpakowicz005_32-230621-1_R255_S8", "DSpakowicz005_33-230127-1_R255_S6", "DSpakowicz005_34-230201-2_R255_S7")
+phyl.ra <- phyl.ra[!(phyl.ra$sample %in% samples_to_remove),]
+
+
+colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2", "cornflowerblue", "deeppink4", "#999933") 
+
+phyl.ra %>%
+  ggplot(aes(x = `Patient ID`, y = RelAbun, fill = Phylum)) +  # Use backticks for column with space
+  geom_bar(position = "fill", stat = "identity") +
+  scale_fill_manual(values = colors) + 
+  labs(x = "Patient ID", y = "") +  # Axis labels
+  theme_minimal(base_size = 9) +
+  theme(
+    axis.text.x = element_blank(),  # Rotate x-axis labels if needed
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_blank(),
+    panel.grid.major = element_blank(),
+    legend.position = "top",
+    legend.box = "horizontal",
+    legend.title = element_blank(),
+    strip.placement = "outside", # Optional: Moves facet labels outside (if using facets)
+    strip.background = element_blank(), # Optional: Removes the background of facet labels
+    strip.text.x = element_text(size = 9) # Adjusts facet label text size (if using facets)
+  ) +
+  guides(fill = guide_legend(ncol = 7, nrow = 1, byrow = TRUE)) +
+facet_grid(~PPI, scales = "free_x", space = "free", switch = "x") 
+
+ggsave("../../figures/2025/iobio/stackedbar.png", height = 4, width = 6)
+```
