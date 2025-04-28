@@ -1,7 +1,7 @@
 ---
-title: "P188 Survival Curves"
+title: "P188 Stage 3 and 4"
 author: "Anna Petouhoff"
-date: "2025-03-01"
+date: "2025-04-16"
 output: html_document
 ---
 
@@ -19,8 +19,7 @@ library(patchwork)
 ```
 
 ```{r}
-P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted.csv")
-p188_34 <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted_Stage_34.csv")
+P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted_Stage_34.csv")
 ```
 
 # PPI Use and OS across all cancers 
@@ -99,20 +98,12 @@ PDL1_Chemo_plot <- ggsurvplot(PDL1_Chemo, pval = T, risk.table = T) +
 combined_PDL1_Chemo <- PDL1_Chemo_plot$plot / PDL1_Chemo_plot$table + plot_layout(heights = c(3, 1))
 combined_PDL1_Chemo
 ```
-
-# Save plots
-
 ```{r}
-ggsave("../../figures/2025/P188_PPI_KM.svg", plot = combined_all_surv, device = "svg", width = 6, height = 6)
-ggsave("../../figures/2025/P188_PPI_no_chemo_KM.svg", plot = combined_no_chemo, device = "svg", width = 6, height = 6)
-ggsave("../../figures/2025/P188_PPI_chemo_KM.svg", plot = combined_chemo, device = "svg", width = 6, height = 6)
-ggsave("../../figures/2025/P188_PPI_more_than_one_year_KM.svg", plot = combined_more_than_one_year, device = "svg", width = 6, height = 6)
-ggsave("../../figures/2025/P188_PPI_less_than_one_year.svg", plot = combined_less_than_one_year, device = "svg", width = 6, height = 6)
-ggsave("../../figures/2025/P188_PPI_PDL1.svg", plot = combined_PDL1, device = "svg", width = 6, height = 6)
-ggsave("../../figures/2025/P188_PPI_PDL1_Chemo.svg", plot = combined_PDL1_Chemo, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/P188_S34/P188_34_PPI_KM.svg", plot = combined_all_surv, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/P188_S34/P188_34_PPI_no_chemo_KM.svg", plot = combined_no_chemo, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/P188_S34/P188_34_PPI_chemo_KM.svg", plot = combined_chemo, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/P188_S34/P188_34_PPI_more_than_one_year_KM.svg", plot = combined_more_than_one_year, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/P188_S34/P188_34_PPI_less_than_one_year.svg", plot = combined_less_than_one_year, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/P188_S34/P188_34_PPI_PDL1.svg", plot = combined_PDL1, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/P188_S34/P188_34_PPI_PDL1_Chemo.svg", plot = combined_PDL1_Chemo, device = "svg", width = 6, height = 6)
 ```
-
-
-
-
-

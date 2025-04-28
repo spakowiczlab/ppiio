@@ -20,6 +20,7 @@ library(readxl)
 ```{r}
 CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")
 P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted.csv")
+P188_34 <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted_Stage_34.csv")
 load("../../data/Mitox/clinical.rds")
 load("../../data/Mitox/mitox_microbiome_metadata.rds")
 iobio <- read_excel("T:/Labs/Spakowicz/Iobio/data/PPI_Microbiome data set 01232025_deID.xlsx")
@@ -41,6 +42,16 @@ CoRR_df <-
          Chemo_prior = prior_chemo)
 P188_df <- 
   P188 %>%
+  mutate(`ECOG PS` = fct_relevel(ifelse(ecog > 2, ">2", ecog), "0","1","2",">2"),
+         Staging  = ifelse(staging == 5, "Unknown", staging),
+         BMI = bmi,
+         Age = age,
+         follow_up_time=follow_up,
+         Sex = sex,
+         Therapy = ifelse(line_of_therapy == 1,"1",">1"),
+         Chemo_prior = prior_chemo)
+P188_df_34 <- 
+   P188_34 %>%
   mutate(`ECOG PS` = fct_relevel(ifelse(ecog > 2, ">2", ecog), "0","1","2",">2"),
          Staging  = ifelse(staging == 5, "Unknown", staging),
          BMI = bmi,
@@ -75,6 +86,19 @@ table2 <- CreateTableOne(vars = listVars2,
 tbl2 <- print(table2, nonnormal = "follow_up_time")
 write.csv(tbl2, "../../tables/table2.csv")
 ```
+```{r}
+listVars5 <- c("Age", "Sex", "vitalstatus","ECOG PS", "Immunotherapy","Chemo_prior","follow_up_time")
+catVars5 <- c("Sex", "vitalstatus","Immunotherapy", "ECOG PS","Chemo_prior")
+table5 <- CreateTableOne(vars = listVars5,
+                         data = P188_df_34,
+                         factorVars = catVars5,
+                         strata = c("ppi"))
+tbl5 <- print(table5, nonnormal = "follow_up_time")
+write.csv(tbl5, "../../tables/table_P188_34.csv")
+```
+
+
+
 #Table 1 for Mitox 
 ```{r}
 baseline <- mic.meta %>%

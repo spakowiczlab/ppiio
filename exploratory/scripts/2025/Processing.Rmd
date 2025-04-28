@@ -124,7 +124,6 @@ ppi_corr <- CoRR %>%
   mutate(days = eventdate - iostart) %>%
  mutate(chemo_timing = as.numeric(difftime(iostart, chemo_date, units = "days"))) %>%
   mutate(chemo_greater_one_year = ifelse(chemo_timing >366, 1, 0))
-  
 ```
 
 ```{r}
@@ -182,13 +181,32 @@ pull_timing_info <- function(des.meds, meds.list, ord.offset, cdb, end.complete)
 
 }
 
+generate_abx_key <- function(){
+  abxkey <- as.data.frame(cbind(medname = c("penicillin", "Amoxicillin", "Ampicillin", "Piperacillin", "Cefalexin", 
+                                            "Cephalexin", "Ceftriaxone", "Ceftazidime", "Cefepime", "Aztreonam", "Imipenem",
+                                            "Ciprofloxacin", "levofloxacin", "Moxifloxacin",
+                                            "Azithromycin", "Clarithromycin", "Erythromycin",
+                                            "Doxycycline", "Tetracycline", "Minocycline",
+                                            "Linezolid", "Daptomycin",
+                                            "Acyclovir", "Ganciclovir", "Valacyclovir", "Valaciclovir", "Valganciclovir", 
+                                            "Foscarnet", "Oseltamivir",
+                                            "Fluconazole", "Voriconazole", "Posaconazole", "Caspofungin", "Micafungin",
+                                            "Vancomycin", "Sulfamethoxazole","Clindamycin","Metronidazole"),
+                                medclass = "ABX"),
+                          stringsAsFactors = F)
+  return(abxkey)
+}
+
+abx.key = generate_abx_key()
+
 ```
 
 ```{r}
 start.ordering.offset = check_date_difference(meds)
 
-ppi_corr = pull_timing_info(bind_rows(class.key), meds, 
+ppi_corr = pull_timing_info(bind_rows(class.key,abx.key), meds, 
                                  start.ordering.offset["Median"], ppi_corr, F)
+  
 ```
 
 
@@ -221,6 +239,32 @@ ppi_P188 <- P188 %>%
   mutate(chemo_greater_one_year = ifelse(chemo_timing >366, 1, 0))
 ```
 
+```{r}
+ppi_P188_34 <- P188 %>%
+  rename("MRN"="record_id") %>%
+  filter(cancer == 1)%>%
+  filter(staging %in% c(3,4)) %>%
+  filter(iostart != "") %>%
+  filter(vitalstatus != 3)%>%
+  mutate(vitalstatus = ifelse(vitalstatus == 1, 1, 0)) %>%
+  mutate(deathdate = ifelse(deathdate == "", NA, deathdate),
+         lastcontact = ifelse(lastcontact == "", NA, lastcontact)) %>%
+  mutate(date = coalesce(deathdate, lastcontact),
+         date = as.Date(date),
+         iostart = as.Date(iostart),
+         dob = as.Date(dob)) %>%
+  mutate(age=as.numeric(as.character(floor((iostart-dob)/365))))%>%
+   mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
+ drop_na(ppi, dob)%>% 
+  mutate(prior_chemo = ifelse(chemo_prior == 1, "yes", "no")) %>%
+  mutate(eventdate = coalesce(deathdate, lastcontact)) %>%
+  mutate(eventdate = as.POSIXct(eventdate, format = "%F"),
+         iostart = as.POSIXct(iostart, format = "%F"),
+         chemo_date = as.POSIXct(chemo_date, format = "%F")) %>%
+  mutate(days = eventdate - iostart) %>%
+ mutate(chemo_timing = as.numeric(difftime(iostart, chemo_date, units = "days"))) %>%
+  mutate(chemo_greater_one_year = ifelse(chemo_timing >366, 1, 0))
+```
 
 
 # Immunotherapy labeling
@@ -248,6 +292,27 @@ ppi_corr <-
 
 ppi_P188 <- 
  ppi_P188 %>%
+  left_join(ionames) %>%
+  mutate(Immunotherapy = if_else(grepl("Atezo|Durvalumab$|Nivolumab$|Pembro",
+                                           Immunotherapy),
+                                     true = "PD1/L1",
+                                     false = Immunotherapy),
+         Immunotherapy = if_else(grepl("Durvalumab \\+ Tremelimumab$|Nivolumab \\+ Ipilimumab$",
+                                           Immunotherapy),
+                                     true = "PD1/L1 + CTLA4",
+                                     false = Immunotherapy),
+         Immunotherapy = if_else(grepl("Tremelimumab$|Ipilimumab$",
+                                           Immunotherapy),
+                                     true = "CTLA4",
+                                     false = Immunotherapy),
+         Immunotherapy = if_else(grepl("Nivolumab \\+ Chemotherapy",
+                                           Immunotherapy),
+                                     true = "Other",
+                                     false = Immunotherapy),
+         Immunotherapy = fct_relevel(Immunotherapy, c("PD1/L1", "CTLA4", "PD1/L1 + CTLA4", "Other")))
+
+ppi_P188_34 <- 
+ ppi_P188_34 %>%
   left_join(ionames) %>%
   mutate(Immunotherapy = if_else(grepl("Atezo|Durvalumab$|Nivolumab$|Pembro",
                                            Immunotherapy),
@@ -323,6 +388,7 @@ ppi_corr <- ppi_corr[!ppi_corr$MRN %in% common_rows, ]
 write.csv(ppi_corr,  "T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")
 write.csv(ppi_P188, "T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted.csv")
 write.csv(DO.combined,"T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/DO_Combined_formatted.csv" )
+write.csv(ppi_P188_34,"T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted_Stage_34.csv" )
 ```
 
 
