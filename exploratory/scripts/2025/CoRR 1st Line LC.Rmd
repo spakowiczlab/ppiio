@@ -1,0 +1,128 @@
+---
+title: "CoRR 1st Line LC"
+author: "Anna Petouhoff"
+date: "2025-04-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+library(ggplot2)
+library(survival)
+library(survminer)
+library(svglite)
+library(patchwork)
+```
+
+```{r}
+CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")
+P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted.csv")
+p188_34 <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted_Stage_34.csv") 
+```
+
+```{r}
+CoRR <- CoRR %>%
+  filter(line_of_therapy != 1) %>%
+  filter(cancer == 1) %>%
+  drop_na(prior_chemo)
+```
+
+
+# PPI Use and OS across all cancers 
+```{r}
+all_surv <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR)
+
+all_surv_plot <- ggsurvplot(all_surv, pval = T, risk.table = T) +
+  ggtitle("PPI use and OS across all cancers")
+
+combined_all_surv <- all_surv_plot$plot / all_surv_plot$table + plot_layout(heights = c(3, 1))
+combined_all_surv
+```
+
+# PPI use and OS without prior chemotherapy
+```{r}
+no_chemo <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$prior_chemo == "no",])
+
+no_chemo_plot <- ggsurvplot(no_chemo, pval = T, risk.table = T) +
+  ggtitle("PPI use and OS without prior chemotherapy")
+
+combined_no_chemo <- no_chemo_plot$plot / no_chemo_plot$table + plot_layout(heights = c(3, 1))
+combined_no_chemo
+```
+# PPI use and OS with prior chemotherapy
+```{r}
+chemo <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$prior_chemo == "yes",])
+
+chemo_plot <- ggsurvplot(chemo, pval = T, risk.table = T) +
+  ggtitle("PPI use and OS with prior chemotherapy")
+
+combined_chemo <- chemo_plot$plot / chemo_plot$table + plot_layout(heights = c(3, 1))
+combined_chemo
+```
+
+# PPI use and OS if patient recieved chemo more than 1 year
+
+```{r}
+prior_chemotherapy <- CoRR %>%
+  drop_na(chemo_greater_one_year)
+
+more_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = prior_chemotherapy[prior_chemotherapy$chemo_greater_one_year == 1,])
+
+more_than_one_year_plot <- ggsurvplot(more_than_one_year, pval = T, risk.table = T) +
+  ggtitle("PPI use and OS if patient recieved chemo more than 1 year")
+
+combined_more_than_one_year <- more_than_one_year_plot$plot / more_than_one_year_plot$table + plot_layout(heights = c(3, 1))
+combined_more_than_one_year
+```
+
+# PPI use and OS if patient recieved chemo less than 1 year
+```{r}
+less_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = prior_chemotherapy[prior_chemotherapy$chemo_greater_one_year == 0,])
+
+less_than_one_year_plot <- ggsurvplot(less_than_one_year, pval = T, risk.table = T) +
+  ggtitle("PPI use and OS if patient recieved chemo less than 1 year")
+
+combined_less_than_one_year <- less_than_one_year_plot$plot / less_than_one_year_plot$table + plot_layout(heights = c(3, 1))
+combined_less_than_one_year
+```
+```{r}
+PDL1 <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$Immunotherapy == "PD1/L1",])
+
+PDL1_plot <- ggsurvplot(PDL1, pval = T, risk.table = T) +
+  ggtitle("P188: PPI use and OS for PD1/L1")
+
+combined_PDL1 <- PDL1_plot$plot / PDL1_plot$table + plot_layout(heights = c(3, 1))
+combined_PDL1
+```
+
+```{r}
+filtered <- CoRR %>%
+  filter(Immunotherapy == "PD1/L1", chemo_greater_one_year == 1)
+PDL1_Chemo <- survfit(Surv(days, vitalstatus) ~ ppi, data = filtered)
+PDL1_Chemo_plot <- ggsurvplot(PDL1_Chemo, pval = T, risk.table = T) +
+  ggtitle("P188: PPI use and OS for PD1/L1 with <1 year chemo")
+
+combined_PDL1_Chemo <- PDL1_Chemo_plot$plot / PDL1_Chemo_plot$table + plot_layout(heights = c(3, 1))
+combined_PDL1_Chemo
+```
+
+
+
+ggsave("../../figures/2025/PPI_all_cancers_KM.svg", plot = combined_all_surv, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_first_line_KM.svg", plot = combined_first_line, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_second_line_KM.svg", plot = combined_second_line, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_no_chemo_KM.svg", plot = combined_no_chemo, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_chemo_KM.svg", plot = combined_chemo, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_more_than_one_year_KM.svg", plot = combined_more_than_one_year, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_less_than_one_year.svg", plot = combined_less_than_one_year, device = "svg", width = 6, height = 6)
+
+```{r}
+P188 <- P188 %>%
+  mutate(filter_date = substr(iostopdate, 1, 4)) %>%
+  filter(!(filter_date %in% c("2021", "2022")))
+```
+
