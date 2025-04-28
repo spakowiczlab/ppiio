@@ -97,7 +97,7 @@ phyl.ra %>%
   facet_grid(~PPI, scales = "free_x", space = "free", switch = "x") +
   guides(fill = guide_legend(ncol = 6, nrow = 1, byrow = TRUE))
 
-ggsave("../../figures/2025/mitox/stackedbar.png", height = 4, width = 6)
+ggsave("../../figures/2025/mitox/stackedbar.png", height = 3, width = 8)
 ```
 
 
@@ -127,13 +127,23 @@ g <- res.recist %>%
   scale_color_manual(values = colors, na.value = "honeydew3") +
   theme_bw(base_size = 9) +
   xlab("log2foldchange") +
-  ylab("log10(p-value)") +
+  ylab("log10(p-value)")+
   theme(legend.position =  "none") + # legend matches stacked bar 
-  guides(color = guide_legend(na.translate = FALSE))
+  guides(color = guide_legend(na.translate = FALSE)) +
+  geom_segment(aes(x = 0.1, y = max(-log10(res.recist$q_PPIYes)) + 0.5, 
+                   xend = 4, yend = max(-log10(res.recist$q_PPIYes)) + 0.5),
+               arrow = arrow(length = unit(0.2, "cm")), color = "black") +
+  annotate("text", x = 2, y = max(-log10(res.recist$q_PPIYes)) + 0.65, 
+           label = "PPI Use", hjust = 0, size = 3.5) +
+   geom_segment(aes(x = -0.1, y = max(-log10(res.recist$q_PPIYes)) + 0.5, 
+                   xend = -6, yend = max(-log10(res.recist$q_PPIYes)) + 0.5),
+               arrow = arrow(length = unit(0.2, "cm")), color = "black") +
+  annotate("text", x = -3, y = max(-log10(res.recist$q_PPIYes)) + 0.65, 
+           label = "No PPI Use", hjust = 1, size = 3.5)
 
 g
 
-ggsave("../../figures/2025/mitox/volcanoplot.png", height = 4, width = 7, dpi = 300)
+ggsave("../../figures/2025/mitox/volcanoplot.png", height = 4, width = 6, dpi = 300)
 ```
 
 # structural zero box blot 
@@ -211,7 +221,7 @@ box.in %>%
   ) +
   xlab("")
 
-ggsave("../../figures/2025/mitox/s0-boxplots.png", height = 4, width = 7, dpi = 300)
+ggsave("../../figures/2025/mitox/s0-boxplots.png", height = 4, width = 6, dpi = 300)
 
 ```
 

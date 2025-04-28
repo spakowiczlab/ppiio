@@ -12,12 +12,14 @@ library(dplyr)
 library(broom)
 library(Hmisc)
 library(ggplot2)
+library(umap)
 ```
 
 # load data
 ```{r}
 micro <- read.csv("../../data/iobio/2023-12-07_mpa-aggregate.csv")
 cytof <- readRDS("../../data/iobio/cytof_normalized.RDS")
+cytof_counts <- readRDS("../../data/iobio/cytof_processed.RDS")
 ```
 
 # micro data to species level
@@ -46,7 +48,7 @@ new.species <- species[,-1]
 ```{r}
 merged <- merge(new.species, cytof, by = "Patient ID", all = FALSE)
 rownames(merged) <- merged[,1]
-cytof <- merged[,-1:-634]
+cytof <- merged[,-1:-633]
 ```
 
 # isolated microbes of interest and baseline samples
@@ -157,5 +159,47 @@ phyl.ra %>%
   guides(fill = guide_legend(ncol = 7, nrow = 1, byrow = TRUE)) +
 facet_grid(~PPI, scales = "free_x", space = "free", switch = "x") 
 
-ggsave("../../figures/2025/iobio/stackedbar.png", height = 4, width = 6)
+ggsave("../../figures/2025/iobio/stackedbar.png", height = 3, width = 8)
 ```
+```{r}
+immune <- cytof %>%
+  tibble::rownames_to_column(var = "sample")
+ppis <- c(NA, "Y", "Y","N","N","N","Y","N")
+immune$PPI <- ppis
+
+immune <- immune %>%
+ pivot_longer(
+   cols = where(is.numeric), 
+    names_to = "immune_cell",
+    values_to = "abundance"
+  )
+
+immune_comp  <- immune %>%
+ group_by(sample) %>%
+ mutate(relative_abundance = abundance / sum(abundance)) %>%
+ ungroup()
+
+# Assuming df_long is your long-format dataframe:
+ggplot(immune_comp, aes(x = sample, y = relative_abundance, fill = immune_cell)) +
+  geom_bar(stat = "identity") +
+  labs(
+    title = "Immune Cell Composition by Sample",
+    x = "PPI Use",
+    y = "Abundance",
+    fill = "Immune Cell Type"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+ theme(axis.text.x = element_blank(),  # Rotate x-axis labels if needed
+    axis.ticks.x = element_blank(),
+    axis.text.y = element_blank(),
+    panel.grid.major = element_blank(),
+    legend.key.size = unit(0.35, "cm"),        # smaller boxes
+    legend.text = element_text(size = 8),     # smaller labels
+    legend.title = element_text(size = 9)     # smaller title
+  )+
+  guides(fill = guide_legend(ncol = 2, byrow = TRUE)) +
+  facet_grid(~PPI, scales = "free_x", space = "free", switch = "x") 
+ggsave("../../figures/2025/iobio/immune_stackedbar.png", height = 3, width = 8)
+```
+
