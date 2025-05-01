@@ -85,14 +85,6 @@ almeds.plots <- ggsurvplot(sfits,
 
 ```
 
-```{r}
-g <- almeds.plots[["ppi"]]
-g
-
-pdf("PPI_KMcurve.pdf")
-print(g, newpage = FALSE)
-dev.off()
-```
 
 ```{r 6}
 almeds.plots <- ggsurvplot(sfits,
@@ -112,13 +104,7 @@ almeds.plots <- ggsurvplot(sfits,
                            font.legend = list(size = 12))
 ```
 
-```{r}
-g <- almeds.plots[["h2b_iostart"]]
 
-pdf("H2B_KMcurve.pdf")
-print(g, newpage = FALSE)
-dev.off()
-```
 
 
 

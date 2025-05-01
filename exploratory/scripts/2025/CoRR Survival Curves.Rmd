@@ -26,10 +26,19 @@ CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted
 ```{r}
 all_surv <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR)
 
-all_surv_plot <- ggsurvplot(all_surv, pval = T, risk.table = T) +
-  ggtitle("PPI use and OS across all cancers")
-
-combined_all_surv <- all_surv_plot$plot / all_surv_plot$table + plot_layout(heights = c(3, 1))
+all_surv_plot <- ggsurvplot(all_surv, 
+                            pval = T, 
+                            risk.table = T,
+                            tables.height = 0.29,
+                            title = "Association of PPIs with OS in all cancers",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 12))
+all_surv_plot
+combined_all_surv <- all_surv_plot$plot / all_surv_plot$table + plot_layout(heights = c(3, 0.8))
 combined_all_surv
 ```
 
@@ -37,9 +46,16 @@ combined_all_surv
 ```{r}
 first_line <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$line_of_therapy == 1,])
 
-first_line_plot <- ggsurvplot(first_line, pval = T, risk.table = T) +
-  ggtitle("PPI use and OS treated in first line with ICI")
+first_line_plot <- ggsurvplot(first_line, pval = T, risk.table = T, tables.height = 0.29,
+                            title = "Association of PPIs with OS in first line ICI",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 12))
 
+first_line_plot
 combined_first_line <- first_line_plot$plot / first_line_plot$table + plot_layout(heights = c(3, 1))
 combined_first_line
 ```
@@ -48,9 +64,16 @@ combined_first_line
 ```{r}
 second_line <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$line_of_therapy != 1,])
 
-second_line_plot <- ggsurvplot(second_line, pval = T, risk.table = T) +
-  ggtitle("PPI use and OS treated in second line and beyond with ICI")
+second_line_plot <- ggsurvplot(second_line, pval = T, risk.table = T, tables.height = 0.29,
+                            title = "Association of PPIs with OS in second line ICI",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 12))
 
+second_line_plot
 combined_second_line <- second_line_plot$plot / second_line_plot$table + plot_layout(heights = c(3, 1))
 combined_second_line
 ```
@@ -59,9 +82,16 @@ combined_second_line
 ```{r}
 no_chemo <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$prior_chemo == "no",])
 
-no_chemo_plot <- ggsurvplot(no_chemo, pval = T, risk.table = T) +
-  ggtitle("PPI use and OS without prior chemotherapy")
-
+no_chemo_plot <- ggsurvplot(no_chemo, pval = T, risk.table = T,
+                             tables.height = 0.29,
+                            title = "Association of PPIs with OS without prior chemotherapy",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 12)) 
+no_chemo_plot
 combined_no_chemo <- no_chemo_plot$plot / no_chemo_plot$table + plot_layout(heights = c(3, 1))
 combined_no_chemo
 ```
@@ -69,35 +99,51 @@ combined_no_chemo
 ```{r}
 chemo <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$prior_chemo == "yes",])
 
-chemo_plot <- ggsurvplot(chemo, pval = T, risk.table = T) +
-  ggtitle("PPI use and OS with prior chemotherapy")
-
+chemo_plot <- ggsurvplot(chemo, pval = T, risk.table = T, tables.height = 0.29,
+                            title = "Association of PPIs with OS with prior chemotherapy",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 12)) 
+chemo_plot
 combined_chemo <- chemo_plot$plot / chemo_plot$table + plot_layout(heights = c(3, 1))
 combined_chemo
+
 ```
 
 # PPI use and OS if patient recieved chemo more than 1 year
 
 ```{r}
-prior_chemotherapy <- CoRR %>%
-  drop_na(chemo_greater_one_year)
+more_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$chemo_greater_one_year == 1,])
 
-more_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = prior_chemotherapy[prior_chemotherapy$chemo_greater_one_year == 1,])
-
-more_than_one_year_plot <- ggsurvplot(more_than_one_year, pval = T, risk.table = T) +
-  ggtitle("PPI use and OS if patient recieved chemo more than 1 year")
-
+more_than_one_year_plot <- ggsurvplot(more_than_one_year, pval = T, risk.table = T,  tables.height = 0.29,
+                            title = "Association of PPIs with OS in chemotherapy for more than one year",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 12)) 
+more_than_one_year_plot
 combined_more_than_one_year <- more_than_one_year_plot$plot / more_than_one_year_plot$table + plot_layout(heights = c(3, 1))
 combined_more_than_one_year
 ```
 
 # PPI use and OS if patient recieved chemo less than 1 year
 ```{r}
-less_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = prior_chemotherapy[prior_chemotherapy$chemo_greater_one_year == 0,])
+less_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$chemo_greater_one_year == 0,])
 
-less_than_one_year_plot <- ggsurvplot(less_than_one_year, pval = T, risk.table = T) +
-  ggtitle("PPI use and OS if patient recieved chemo less than 1 year")
-
+less_than_one_year_plot <- ggsurvplot(less_than_one_year, pval = T, risk.table = T, tables.height = 0.29,
+                            title = "Association of PPIs with OS in chemotherapy for less than one year",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 12)) 
+less_than_one_year_plot
 combined_less_than_one_year <- less_than_one_year_plot$plot / less_than_one_year_plot$table + plot_layout(heights = c(3, 1))
 combined_less_than_one_year
 ```
@@ -105,13 +151,13 @@ combined_less_than_one_year
 
 
 ```{r}
-ggsave("../../figures/2025/PPI_all_cancers_KM.svg", plot = combined_all_surv, device = "svg", width = 6, height = 6)
-ggsave("../../figures/2025/PPI_first_line_KM.svg", plot = combined_first_line, device = "svg", width = 6, height = 6)
-ggsave("../../figures/2025/PPI_second_line_KM.svg", plot = combined_second_line, device = "svg", width = 6, height = 6)
-ggsave("../../figures/2025/PPI_no_chemo_KM.svg", plot = combined_no_chemo, device = "svg", width = 6, height = 6)
-ggsave("../../figures/2025/PPI_chemo_KM.svg", plot = combined_chemo, device = "svg", width = 6, height = 6)
-ggsave("../../figures/2025/PPI_more_than_one_year_KM.svg", plot = combined_more_than_one_year, device = "svg", width = 6, height = 6)
-ggsave("../../figures/2025/PPI_less_than_one_year.svg", plot = combined_less_than_one_year, device = "svg", width = 6, height = 6)
+ggsave("../../figures/2025/PPI_all_cancers_KM.png", plot = combined_all_surv, device = "png", width = 8, height = 6)
+ggsave("../../figures/2025/PPI_first_line_KM.png", plot = combined_first_line, device = "png", width = 8, height = 6)
+ggsave("../../figures/2025/PPI_second_line_KM.png", plot = combined_second_line, device = "png", width = 8, height = 6)
+ggsave("../../figures/2025/PPI_no_chemo_KM.png", plot = combined_no_chemo, device = "png", width = 8, height = 6)
+ggsave("../../figures/2025/PPI_chemo_KM.png", plot = combined_chemo, device = "png", width = 8, height = 6)
+ggsave("../../figures/2025/PPI_more_than_one_year_KM.png", plot = combined_more_than_one_year, device = "png", width = 8, height = 6)
+ggsave("../../figures/2025/PPI_less_than_one_year.png", plot = combined_less_than_one_year, device = "png", width = 8, height = 6)
 ```
 
 
