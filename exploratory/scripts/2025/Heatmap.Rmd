@@ -208,6 +208,6 @@ heat.plot <- heat.data %>%
                    labels = c('Other', 'Melanoma', 'Non-small cell lung cancer', 'Renal cell carcinoma',"Head and neck carcinoma", "All"))
 heat.plot
 
-ggsave("../../figures/2025/AllMeds_Heatmap.png)
+ggsave("../../figures/2025/AllMeds_Heatmap.png", width = 8, height = 6)
 
 ```

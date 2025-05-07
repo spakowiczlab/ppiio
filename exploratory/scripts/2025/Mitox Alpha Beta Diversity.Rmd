@@ -71,8 +71,8 @@ div.ra.resp <- shannon.index %>%
 alpha_diversity <- div.ra.resp %>%
   ggplot(aes(x=PPI, y = Score)) +
   geom_boxplot(aes(fill = PPI)) +
-  scale_fill_manual(values=c("cornflowerblue", "deeppink4")) +
-  labs(title = "Alpha Diversity", x= "PPI Use", y = "Shannon Index") +
+  scale_fill_manual(values=c("cornflowerblue", "lightsalmon2")) +
+  labs(x= "PPI Use", y = "Shannon Index") +
    stat_compare_means(method = "t.test")
 
 ggsave("../../figures/2025/mitox/alpha_diversity.png", plot= alpha_diversity, height = 4, width = 6)
@@ -99,10 +99,13 @@ scores <- pca_result$x %>%
   rownames_to_column(var = "Sample")
 scores$PPI <- resp.id$PPI
 
+ppi_colors <- c("Yes" = "lightsalmon2", "No" = "cornflowerblue")
+
 beta_diversity <- ggplot(scores, aes(x = PC1, y = PC2, color = PPI)) +
   geom_point(size = 3) +
+  scale_color_manual(values = ppi_colors) + 
   theme_minimal() +
-  labs(title = "PCA Plot", x = "PC1", y = "PC2")
+  labs(x = "PC1", y = "PC2")
 
 ggsave("../../figures/2025/mitox/beta_diversity.png", plot= beta_diversity, height = 4, width = 6)
 ```

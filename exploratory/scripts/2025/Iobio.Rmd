@@ -138,42 +138,59 @@ phyl.ra <- phyl.ra[!(phyl.ra$sample %in% samples_to_remove),]
 colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2", "cornflowerblue", "deeppink4", "#999933") 
 
 phyl.ra %>%
-  ggplot(aes(x = `Patient ID`, y = RelAbun, fill = Phylum)) +  # Use backticks for column with space
-  geom_bar(position = "fill", stat = "identity") +
+  ggplot(aes(x = `Patient ID`, y = RelAbun, fill = Phylum)) +  
+  geom_bar(position = "fill", stat = "identity", width = .4) +
   scale_fill_manual(values = colors) + 
-  labs(x = "Patient ID", y = "") +  # Axis labels
+  labs(x = "Patient ID", y = "") + 
   theme_minimal(base_size = 9) +
   theme(
-    axis.text.x = element_blank(),  # Rotate x-axis labels if needed
+    axis.text.x = element_blank(), 
     axis.ticks.x = element_blank(),
+    axis.ticks.y = element_blank(),
     axis.text.y = element_blank(),
     panel.grid.major = element_blank(),
-    legend.position = "top",
+    legend.position = "right",
     legend.box = "horizontal",
-    legend.title = element_blank(),
-    strip.placement = "outside", # Optional: Moves facet labels outside (if using facets)
-    strip.background = element_blank(), # Optional: Removes the background of facet labels
-    strip.text.x = element_text(size = 9) # Adjusts facet label text size (if using facets)
-  ) +
-  guides(fill = guide_legend(ncol = 7, nrow = 1, byrow = TRUE)) +
-facet_grid(~PPI, scales = "free_x", space = "free", switch = "x") 
+    legend.title = element_blank()) +
+  guides(fill = guide_legend(ncol = 1, nrow = 7, byrow = TRUE)) + 
+  facet_grid(~PPI, scales = "free_x", space = "free", switch = "x") 
 
-ggsave("../../figures/2025/iobio/stackedbar.png", height = 3, width = 8)
+
+
+
+
+ggsave("../../figures/2025/iobio/stackedbar.svg", device= "svg", height = 3, width = 8)
 ```
+
 ```{r}
 
 immune_matrix <- t(as.matrix(cytof))
 
 png("../../figures/2025/iobio/immune_cell_abundance.png", width = 1000, height = 800, res = 150)
-heatmap <- pheatmap(immune_matrix,
+
+#adding ppi annotation
+ppi_status <-  c(NA, "Y", "Y","N","N","N","Y","N")
+ppi_annotation <- data.frame(PPI = ppi_status)
+rownames(ppi_annotation) <- colnames(immune_matrix)
+
+# reorder the column bases on ppi status
+ordered_columns <- order(ppi_status)  
+ordered_immune_matrix <- immune_matrix[, ordered_columns]
+ordered_ppi_annotation <- ppi_annotation[ordered_columns, , drop = FALSE]
+
+annotation_colors <- list(
+  PPI = c("Y" = "lightsalmon2", "N" = "slateblue2"))
+
+heatmap <- pheatmap(ordered_immune_matrix,
          cluster_rows = FALSE,
          cluster_cols = FALSE,
-         color = colorRampPalette(c("white", "steelblue"))(100),
+         color = colorRampPalette(c("white","lightsteelblue"))(100),
          fontsize_row = 6,
          fontsize_col = 6,
-          legend_labels = NULL,     
-         main = "Immune Cell Abundance",  
-         angle_col = 45)
+          legend_labels = NULL,  
+         angle_col = 45, 
+         annotation_col = ppi_annotation,
+         annotation_colors= annotation_colors)
 
 
 dev.off()
