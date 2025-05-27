@@ -13,6 +13,7 @@ library(broom)
 library(Hmisc)
 library(ggplot2)
 library(pheatmap)
+library(viridis)
 ```
 
 # load data
@@ -62,7 +63,7 @@ cytof <- cytof[-c(5,7,9,11),]
 
 # adding PPI use information
 ```{r}
-PPI <- c("N", "N", "Y", "N", "N", NA, NA, "Y", "Y", "Y", "Y", "N")
+PPI <- c("N", "N", "Y", "N", "N", "N", "NA", "Y", "Y", "Y", "Y", "N")
 merged$PPI <- PPI
 merged <- merged[-c(5,7,9,11),]
 merged <- merged %>%
@@ -81,6 +82,7 @@ cytof <- filter(cytof)
 
 # running correlation
 ```{r}
+set.seed(9)
 corr.results <- lapply(colnames(interest), function(x)
   lapply(colnames(cytof), function(y) cor.test(interest[[x]], cytof[[y]],
                                                method = "spearman", exact = F) %>%
@@ -93,14 +95,18 @@ corr.results <- lapply(colnames(interest), function(x)
 
 #Plotting significant correlation
 ```{r}
-ggplot(merged, aes(x=`TE CD4` , y=RelAbun._Enterocloster_clostridioformis)) + geom_point() + stat_smooth(method = "lm", aes(group =1)) + labs(x = "TE CD4 Count", y = "Relative Abundance of Enterocloster clostridioformis")
+ggplot(merged, aes(x=`TE CD4` , y=RelAbun._Enterocloster_clostridioformis)) +
+  geom_point() + stat_smooth(method = "lm", aes(group =1)) + 
+  labs(x = "TE CD4 Count", y = "Relative Abundance of\nEnterocloster clostridioformis") +
+  theme_minimal(base_size = 8)
+  ggsave("../../figures/2025/iobio/correlation.svg", device = "svg", height = 2, width = 6)
 ```
 
 
 
 #stacked bar plot
 ```{r}
-resp.id$PPI <- merged$PPI
+resp.id$PPI <- c("N","Y","Y","N","N","N","Y","N")
 phyl.ra <- micro[grep("p__", micro$Taxonomy),]
 phyl.ra <- phyl.ra[-grep("c__", phyl.ra$Taxonomy),]
 
@@ -159,17 +165,16 @@ phyl.ra %>%
 
 
 
-ggsave("../../figures/2025/iobio/stackedbar.svg", device= "svg", height = 3, width = 8)
+ggsave("../../figures/2025/iobio/stackedbar.svg", device= "svg", height = 2.1, width = 2.64, scale = 2)
 ```
 
 ```{r}
 
 immune_matrix <- t(as.matrix(cytof))
 
-png("../../figures/2025/iobio/immune_cell_abundance.png", width = 1000, height = 800, res = 150)
 
 #adding ppi annotation
-ppi_status <-  c(NA, "Y", "Y","N","N","N","Y","N")
+ppi_status <-  c("N","N","Y","N","N","Y", "Y", "N")
 ppi_annotation <- data.frame(PPI = ppi_status)
 rownames(ppi_annotation) <- colnames(immune_matrix)
 
@@ -181,17 +186,21 @@ ordered_ppi_annotation <- ppi_annotation[ordered_columns, , drop = FALSE]
 annotation_colors <- list(
   PPI = c("Y" = "lightsalmon2", "N" = "slateblue2"))
 
+svg("../../figures/2025/iobio/IC_Abundance.svg", width = 6, height = 4)
+
 heatmap <- pheatmap(ordered_immune_matrix,
          cluster_rows = FALSE,
          cluster_cols = FALSE,
-         color = colorRampPalette(c("white","lightsteelblue"))(100),
+#         color = colorRampPalette(c("white","lightsteelblue"))(100),
+#          color = rainbow(100),
+#          color = viridis(100),
+         color = colorRampPalette(c("lightblue","blue", "darkblue"))(100),
          fontsize_row = 6,
          fontsize_col = 6,
           legend_labels = NULL,  
          angle_col = 45, 
          annotation_col = ppi_annotation,
          annotation_colors= annotation_colors)
-
 
 dev.off()
      
@@ -204,7 +213,7 @@ dev.off()
 ```{r}
 immune <- cytof %>%
   tibble::rownames_to_column(var = "sample")
-ppis <- c(NA, "Y", "Y","N","N","N","Y","N")
+ppis <- c("N","N","Y","N","N","Y", "Y", "N")
 immune$PPI <- ppis
 
 immune <- immune %>%

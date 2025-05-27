@@ -14,6 +14,7 @@ library(ROCR)
 library(gdata)
 library(vegan)
 library(ggpubr)
+library(ggforce)
 ```
 
 ```{r}
@@ -75,7 +76,9 @@ alpha_diversity <- div.ra.resp %>%
   labs(x= "PPI Use", y = "Shannon Index") +
    stat_compare_means(method = "t.test")
 
-ggsave("../../figures/2025/mitox/alpha_diversity.png", plot= alpha_diversity, height = 4, width = 6)
+
+ggsave("../../figures/2025/mitox/alpha_diversity.svg", device = "svg", plot= alpha_diversity, height = 2, width = 3, scale = 2
+      )
 ```
 
 
@@ -101,28 +104,33 @@ scores$PPI <- resp.id$PPI
 
 ppi_colors <- c("Yes" = "lightsalmon2", "No" = "cornflowerblue")
 
+group_means <- scores %>%
+  group_by(PPI) %>%
+  summarize(PC1_mean = mean(PC1), PC2_mean = mean(PC2))
+radius <- 1
+
 beta_diversity <- ggplot(scores, aes(x = PC1, y = PC2, color = PPI)) +
   geom_point(size = 3) +
   scale_color_manual(values = ppi_colors) + 
   theme_minimal() +
-  labs(x = "PC1", y = "PC2")
+  labs(x = "PC1", y = "PC2") +
+  # stat_ellipse(aes(group = PPI), type = "norm", level = 0.95, linetype = 1, size =1)
+  geom_circle(data = group_means, aes(x0= PC1_mean, y0=PC2_mean, r=radius), inherit.aes=FALSE, color = "black", size =0.75)
 
-ggsave("../../figures/2025/mitox/beta_diversity.png", plot= beta_diversity, height = 4, width = 6)
+  
+beta_diversity
+
+ggsave("../../figures/2025/mitox/beta_diversity.svg", device = "svg", plot= beta_diversity, height = 2, width = 3, scale =2)
 ```
 
+# Running Statistics 
 ```{r}
 wide_data$PPI <- resp.id$PPI
 abundance <- ra.wide[,-1]
-```
 
-
-
-```{r}
 set.seed(9)
 adonis2(bc_dist ~ PPI, data = wide_data, method = "bray")
-```
 
-```{r}
 adonis2(abundance ~ PPI, data = wide_data, method = "bray")
 ```
 

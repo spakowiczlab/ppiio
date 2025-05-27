@@ -97,7 +97,7 @@ phyl.ra %>%
   facet_grid(~PPI, scales = "free_x", space = "free", switch = "x") +
   guides(fill = guide_legend(ncol = 6, nrow = 1, byrow = TRUE))
 
-ggsave("../../figures/2025/mitox/stackedbar.png", height = 3, width = 8)
+ggsave("../../figures/2025/mitox/stackedbar.svg", device= "svg", height = 1.12, width = 2.95, scale = 2)
 ```
 
 
@@ -118,12 +118,13 @@ res.recist <- res.recist %>%
 colors <- c("#6699CC", "#999933", "#CC6677","#44AA99","#882255")
 colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2", "deeppink4") 
 ```
+
 ```{r}
 g <- res.recist %>%
   filter(q_PPIYes < 1) %>%
   ggplot(aes(x=lfc_PPIYes, y=-log10(q_PPIYes), label = label)) + 
   geom_point(aes(x=lfc_PPIYes, y=-log10(q_PPIYes), color = Phylum)) + 
-  geom_text_repel(size = 2) +
+  geom_text_repel(size = 3, max.overlaps=15) +
   scale_color_manual(values = colors, na.value = "honeydew3") +
   theme_bw(base_size = 9) +
   xlab("log2foldchange") +
@@ -134,16 +135,16 @@ g <- res.recist %>%
                    xend = 4, yend = max(-log10(res.recist$q_PPIYes)) + 0.5),
                arrow = arrow(length = unit(0.2, "cm")), color = "black") +
   annotate("text", x = 2, y = max(-log10(res.recist$q_PPIYes)) + 0.65, 
-           label = "PPI Use", hjust = 0, size = 3.5) +
+           label = "PPI Use", hjust = 0, size = 5) +
    geom_segment(aes(x = -0.1, y = max(-log10(res.recist$q_PPIYes)) + 0.5, 
                    xend = -6, yend = max(-log10(res.recist$q_PPIYes)) + 0.5),
                arrow = arrow(length = unit(0.2, "cm")), color = "black") +
   annotate("text", x = -3, y = max(-log10(res.recist$q_PPIYes)) + 0.65, 
-           label = "No PPI Use", hjust = 1, size = 3.5)
+           label = "No PPI Use", hjust = 1, size = 5)
 
 g
 
-ggsave("../../figures/2025/mitox/volcanoplot.png", height = 4, width = 8, dpi = 300)
+ggsave("../../figures/2025/mitox/volcanoplot.svg", device = "svg", height = 2.46, width = 5.1, scale = 2, dpi = 300)
 ```
 
 # structural zero box blot 
@@ -212,16 +213,16 @@ box.in %>%
   geom_jitter() + 
   scale_fill_manual(values = colors) +
   facet_grid(~ PPI, scales = "free", space = "free") +
-  theme_bw(base_size = 9) +
+  theme_bw(base_size = 7) +
   theme(
     panel.spacing = unit(1, "lines"), 
     axis.text.x = element_text(angle = 45, hjust = 1),  
-    strip.text = element_text(size = 9),
+    strip.text = element_text(size = 7),
     legend.position = "none"
   ) +
   xlab("")
 
-ggsave("../../figures/2025/mitox/s0-boxplots.png", height = 4, width = 6, dpi = 300)
+ggsave("../../figures/2025/mitox/s0-boxplots.svg", device = "svg", height = 1.35, width = 1.96, scale = 2, dpi = 300)
 
 ```
 
