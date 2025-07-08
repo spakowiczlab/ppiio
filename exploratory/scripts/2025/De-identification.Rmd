@@ -1,0 +1,53 @@
+---
+title: "De-identifying Data"
+author: "Anna Petouhoff"
+date: "2025-07-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+```
+
+#load data
+```{r}
+CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")
+P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_formatted.csv")
+```
+
+```{r}
+CoRR1 <- CoRR %>%
+  mutate(across(c(date, iostart, iostopdate, date_of_irae, date_of_resolution, tshdate, lft_onset, chemo_date, chemort_date, rechallenge_date, brain_srs_date, brain_wbrt_date, date_rt, rt_date_2, subs_1_start, subs_1_stop, subs_2_start, subs_2_stop, hospice_date, progression_date, ppi_start, ppi_start_2, culturedate, hgbdropdate, hgbrecovery, typebaselinedate, typeafter, bonemetdate, bonemetdate_2, radiation_baseline1, bisphosphstart, bisphosphend, creatitinedate, creatitinedate_2, renalbxdate, datetreatmenthold, io_re_challenge_date, steroidsstart,steroidsend, rash_onset, plt_nadir_date, spiro_date, volume_date_72c, dlco_date_e01, irae_date, date_ed_pre_visit1, pre_visit1_steroid_ed_time, pre_visit1_steroid_inpatient_time, date_ed_pre_visit2, date_ed_pre_visit3, date_ed_post_visit1, date_ed_post_visit2, date_ed_post_visit3, post_visit1_steroid_ed_time, post_visit1_steroid_inpatient_time, post_visit2_steroid_inpatient_time, prior_io_date, post_visit3_steroid_inpatient_time, cbc_next, target_date, rt_date_22_8c4, pathfracture1, firstbxdate, firstbxdate_2, io_2_start, io_2_stop, date_dat, skin_bx_date, bonesurgdate, cordcompressiondate, bonemeticixrt, dt_admit, date_of_irae_v2, date_of_resolution_v2, rechallenge_date_v2, io_3_start, io_3_stop, dt_response, firstbxdate_3, surgerybaseline, pre_visit2_steroid_inpatient_time, ed_pre_visit2_steroid_ed_time, ed_post_visit2_steroid_ed_time), 
+                as.Date)) %>%
+  mutate(across( c(iostart, iostopdate, date_of_irae, date_of_resolution, tshdate, lft_onset, chemo_date, chemort_date, rechallenge_date, brain_srs_date, brain_wbrt_date, date_rt, rt_date_2, subs_1_start, subs_1_stop, subs_2_start, subs_2_stop, hospice_date, progression_date, ppi_start, ppi_start_2, culturedate, hgbdropdate, hgbrecovery, typebaselinedate, typeafter, bonemetdate, bonemetdate_2, radiation_baseline1, bisphosphstart, bisphosphend, creatitinedate, creatitinedate_2, renalbxdate, datetreatmenthold, io_re_challenge_date, steroidsstart,steroidsend, rash_onset, plt_nadir_date, spiro_date, volume_date_72c, dlco_date_e01, irae_date, date_ed_pre_visit1, pre_visit1_steroid_ed_time, pre_visit1_steroid_inpatient_time, date_ed_pre_visit2, date_ed_pre_visit3, date_ed_post_visit1, date_ed_post_visit2, date_ed_post_visit3, post_visit1_steroid_ed_time, post_visit1_steroid_inpatient_time, post_visit2_steroid_inpatient_time, 
+prior_io_date, post_visit3_steroid_inpatient_time, cbc_next,  target_date, rt_date_22_8c4, pathfracture1, firstbxdate, firstbxdate_2, io_2_start, io_2_stop, date_dat, skin_bx_date, bonesurgdate, cordcompressiondate, bonemeticixrt, dt_admit, date_of_irae_v2, date_of_resolution_v2, rechallenge_date_v2, io_3_start, io_3_stop, dt_response, firstbxdate_3, surgerybaseline, pre_visit2_steroid_inpatient_time, ed_pre_visit2_steroid_ed_time, ed_post_visit2_steroid_ed_time), 
+    ~ as.numeric(.x - iostart)
+  )) %>%
+  select(-c(MRN, last_name, dob, deathdate, lastcontact, trial_id, date_of_diagnosis,date, eventdate))
+write.csv(CoRR1,  "T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_de-identified.csv")
+
+```
+
+```{r}
+P1881 <- P188 %>%
+  mutate(across(c(d42_weight_date, max_creatine_date, baseline_echo_date, post_crt_lab_date), ~as.Date(., format = "%d/%m/%y"))) %>%
+mutate(across(c(quit_date, iostart, iostopdate, disease_pd_date, date_of_diagnosis, date_repeat_bx, er_visit, irae_admit_date, irae_dc_date, outpatient_mgmt_date, treatment_inpatient_date, irae_repeat_admit_date, first_hospital_admit_date, first_hospital_dc_date, date_arrythmia, pneumonitis_dt, colitis_dt, thyroid_dt, hepatitis_dt, dermatitis_dt, myalgia_dt, neurological_dt, hypophysitis_dt, otherirae_dt, date_of_irae, lastiodose_dt, lastioresump_dt, addiolastdate_2, addioresump_dt_3, date_of_resolution, rechallenge_date, interrupt_lastdose_dt, interrupt_firstdose_dt, irae_review_date, cbc_next, tshdate, lft_onset, prior_io_date, chemort_date, chemo_date, target_date, brain_srs_date, brain_wbrt_date, date_rt,rt_date_2, rt_date_22_8c4, subs_1_start, subs_1_stop, pd_subs1_date, subs_2_start, subs_2_stop, pd_subs1_date_2, date_labs_pd, orr_date, ppi_start, ppi_start_2, culturedate, bonemetdate, radiation_baseline1, surgerybaseline, bonemetdate_2, pathfracture1, cordcompressiondate, bonesurgdate, bonemeticixrt, bisphosphstart, bisphosphend, hospice_date, io_2_start, io_2_stop, date_of_irae_v2, rechallenge_date_v2, date_repeatmri, ct_head_repeat_date, chemo_start, chemo_stop, rad_start, rad_stop, spiro_date_9c6dc1, volume_date_72c, dlco_date_e01_9d89a6, cbc_next_v3, cbc_next_v2, bmi_imaging_date, cycle_2_date, d21_weight_date, cycle_3_date, cycle_4_date, d63_weight_date, aki_date, date_aki_recovery,pre_aki_ecog_date, onc_treatment_pre_aki_date, onc_post_aki_date, treatment_echo_date, diarrhea_onset_date,best_response_date, date_of_progression_s4, response_review_date,cbc_truebase_date,rt_start_date, rt_last_date, chemo_crt_start, cbc_crt_bl_date, wbc_crt_low_date, hgb_crt_low_date, plt_crt_low_date, mpv_lowest_crt, anc_crt_low_date, alc_crt_low_date, mono_low_crt_date, eos_lowest_date, crt_review_date, diarrhea_onset, diarrhea_max_date, diarrhea_hosp_date, date_diarrhea_cbc, c_diff_1study_date, diarrhea_review_date, nd_line_start_date, nd_line_last_dose_date, nd_line_lab_review_date,d42_weight_date, max_creatine_date, baseline_echo_date, post_crt_lab_date, d42_weight_date, max_creatine_date, baseline_echo_date, post_crt_lab_date, er_visit_date, date_bmir, cbc_next_2line, na_start), as.Date)) %>%
+  mutate(across( c(quit_date, iostart, iostopdate, disease_pd_date, date_of_diagnosis, date_repeat_bx, er_visit, irae_admit_date, irae_dc_date, outpatient_mgmt_date, treatment_inpatient_date, irae_repeat_admit_date, first_hospital_admit_date, first_hospital_dc_date, date_arrythmia, pneumonitis_dt, colitis_dt, thyroid_dt, hepatitis_dt, dermatitis_dt, myalgia_dt, neurological_dt, hypophysitis_dt, otherirae_dt, date_of_irae, lastiodose_dt, lastioresump_dt, addiolastdate_2, addioresump_dt_3, date_of_resolution, rechallenge_date, interrupt_lastdose_dt, interrupt_firstdose_dt, irae_review_date, cbc_next, tshdate, lft_onset, prior_io_date, chemort_date, chemo_date, target_date, brain_srs_date, brain_wbrt_date, date_rt,rt_date_2, rt_date_22_8c4, subs_1_start, subs_1_stop, pd_subs1_date, subs_2_start, subs_2_stop, pd_subs1_date_2, date_labs_pd, orr_date, ppi_start, ppi_start_2, culturedate, bonemetdate, radiation_baseline1, surgerybaseline, bonemetdate_2, pathfracture1, cordcompressiondate, bonesurgdate, bonemeticixrt, bisphosphstart, bisphosphend, hospice_date, io_2_start, io_2_stop, date_of_irae_v2, rechallenge_date_v2, date_repeatmri, ct_head_repeat_date, chemo_start, chemo_stop, rad_start, rad_stop, spiro_date_9c6dc1, volume_date_72c, dlco_date_e01_9d89a6, cbc_next_v3, cbc_next_v2, bmi_imaging_date, cycle_2_date, d21_weight_date, cycle_3_date, cycle_4_date, d63_weight_date, aki_date, date_aki_recovery,pre_aki_ecog_date, onc_treatment_pre_aki_date, onc_post_aki_date, treatment_echo_date, diarrhea_onset_date,best_response_date, date_of_progression_s4, response_review_date,cbc_truebase_date,rt_start_date, rt_last_date, chemo_crt_start, cbc_crt_bl_date, wbc_crt_low_date, hgb_crt_low_date, plt_crt_low_date, mpv_lowest_crt, anc_crt_low_date, alc_crt_low_date, mono_low_crt_date, eos_lowest_date, crt_review_date, diarrhea_onset, diarrhea_max_date, diarrhea_hosp_date, date_diarrhea_cbc, c_diff_1study_date, diarrhea_review_date, nd_line_start_date, nd_line_last_dose_date, nd_line_lab_review_date, d42_weight_date, max_creatine_date, baseline_echo_date, post_crt_lab_date, er_visit_date, date_bmir, cbc_next_2line, na_start), 
+    ~ as.numeric(.x - iostart)
+  )) %>%
+  select(-c(MRN, last_name, dob, deathdate, lastcontact, date, eventdate))
+write.csv(P1881,  "T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/P188_de-identified.csv")
+```
+
+
+
+
+
+
+
