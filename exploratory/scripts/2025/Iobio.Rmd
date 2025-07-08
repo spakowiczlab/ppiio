@@ -186,18 +186,16 @@ ordered_ppi_annotation <- ppi_annotation[ordered_columns, , drop = FALSE]
 annotation_colors <- list(
   PPI = c("Y" = "lightsalmon2", "N" = "slateblue2"))
 
-svg("../../figures/2025/iobio/IC_Abundance.svg", width = 6, height = 4)
+svg("../../figures/2025/IC_Abundance.svg", width = 5.2, height = 4)
 
 heatmap <- pheatmap(ordered_immune_matrix,
          cluster_rows = FALSE,
          cluster_cols = FALSE,
-#         color = colorRampPalette(c("white","lightsteelblue"))(100),
-#          color = rainbow(100),
-#          color = viridis(100),
-         color = colorRampPalette(c("lightblue","blue", "darkblue"))(100),
+          color = viridis(100),
          fontsize_row = 6,
          fontsize_col = 6,
-          legend_labels = NULL,  
+          legend_labels = NULL,
+         legend_position = "bottom",
          angle_col = 45, 
          annotation_col = ppi_annotation,
          annotation_colors= annotation_colors)
