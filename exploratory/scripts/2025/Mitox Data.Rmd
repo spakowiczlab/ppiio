@@ -144,7 +144,7 @@ g <- res.recist %>%
 
 g
 
-ggsave("../../figures/2025/mitox/volcanoplot.svg", device = "svg", height = 2.46, width = 5.1, scale = 2, dpi = 300)
+ggsave("../../figures/2025/mitox/volcanoplot.svg", device = "svg", height = 1.8, width = 3.7, scale = 2)
 ```
 
 # structural zero box blot 
@@ -222,7 +222,7 @@ box.in %>%
   ) +
   xlab("")
 
-ggsave("../../figures/2025/mitox/s0-boxplots.svg", device = "svg", height = 1.35, width = 1.96, scale = 2, dpi = 300)
+ggsave("../../figures/2025/mitox/s0-boxplots.svg", device = "svg", height = 1.6, width = 3.7, scale = 1.5)
 
 ```
 
