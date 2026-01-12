@@ -1,0 +1,41 @@
+---
+title: "Multivariable Coxph model"
+author: "Anna Petouhoff"
+date: "2026-01-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(survival)
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+```
+
+# load data
+```{r}
+CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") 
+
+df <- CoRR %>%
+  select("ppi", "abx_iostart", "staging", "cci_number", "days", "vitalstatus", "chemo_greater_one_year")
+```
+
+# model for all cancers 
+```{r}
+model <- coxph(Surv(days, vitalstatus) ~ ppi +  abx_iostart + staging + cci_number, data = df)
+summary(model)
+
+colSums(is.na(df[, c( "ppi", "abx_iostart", "staging", "cci_number")]))
+```
+# chemo greater than one year 
+```{r}
+df_chemo <- df[which(df$chemo_greater_one_year == 1),]
+model2 <- coxph(Surv(days, vitalstatus) ~ ppi + abx_iostart + staging + cci_number, data = df_chemo)
+summary(model2)
+colSums(is.na(df_chemo[, c( "ppi", "abx_iostart", "staging", "cci_number")]))
+```
+
