@@ -21,7 +21,7 @@ library(tidyr)
 CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") 
 
 df <- CoRR %>%
-  select("ppi", "abx_iostart", "staging", "cci_number", "days", "vitalstatus", "chemo_greater_one_year")
+  select("ppi", "abx_iostart", "staging", "cci_number", "days", "vitalstatus", "chemo_greater_one_year", "ABX.days.to.iostart", "H2B.days.to.iostart", "PPI.days.to.iostart", "h2b_iostart")
 ```
 
 # model for all cancers 
@@ -29,13 +29,69 @@ df <- CoRR %>%
 model <- coxph(Surv(days, vitalstatus) ~ ppi +  abx_iostart + staging + cci_number, data = df)
 summary(model)
 
-colSums(is.na(df[, c( "ppi", "abx_iostart", "staging", "cci_number")]))
+colSums(!is.na(df[, c( "ppi", "abx_iostart", "staging", "cci_number")]))
 ```
 # chemo greater than one year 
 ```{r}
 df_chemo <- df[which(df$chemo_greater_one_year == 1),]
 model2 <- coxph(Surv(days, vitalstatus) ~ ppi + abx_iostart + staging + cci_number, data = df_chemo)
 summary(model2)
-colSums(is.na(df_chemo[, c( "ppi", "abx_iostart", "staging", "cci_number")]))
+colSums(!is.na(df_chemo[, c( "ppi", "abx_iostart", "staging", "cci_number")]))
 ```
+```{r}
+#convert the column into a lost of numeric vectors
+df$H2Bdays <- strsplit(df$H2B.days.to.iostart, ",")
+df$H2Bdays <-lapply(df$H2Bdays, as.numeric)
+
+#identify patients on medication at IO start (day 0)
+df$H2B_med <- sapply(df$H2Bdays, function(x) 1 %in% x)
+table(df$H2B_med)
+```
+```{r}
+#convert the column into a lost of numeric vectors
+df$PPIdays <- strsplit(df$PPI.days.to.iostart, ",")
+df$PPIdays <-lapply(df$PPIdays, as.numeric)
+
+#identify patients on medication at IO start (day 0)
+df$PPI_med <- sapply(df$PPIdays, function(x) 1 %in% x)
+table(df$PPI_med)
+```
+```{r}
+#convert the column into a lost of numeric vectors
+df$ABXdays <- strsplit(df$ABX.days.to.iostart, ",")
+df$ABXdays <-lapply(df$ABXdays, as.numeric)
+
+#identify patients on medication at IO start (day 0)
+df$ABX_med <- sapply(df$ABXdays, function(x) 1 %in% x)
+table(df$ABX_med)
+```
+```{r}
+df$H2B_med <- as.integer(df$H2B_med)
+df$PPI_med <- as.integer(df$PPI_med)
+df$ABX_med <- as.integer(df$ABX_med)
+
+new_df <- df %>%
+  select("ppi", "PPI_med", "h2b_iostart", "H2B_med", "abx_iostart", "ABX_med")
+sapply(new_df, table, useNA = "always")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -1,0 +1,48 @@
+---
+title: "multivariable analyses for ppi and h2b"
+author: "Anna Petouhoff"
+date: "2026-01-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(survival)
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+```
+
+```{r}
+CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") %>%
+  select("ppi", "abx_iostart", "staging", "cci_number", "days", "vitalstatus", "chemo_greater_one_year", "h2b_iostart")
+```
+
+```{r}
+model <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR)
+summary(model)
+
+ppi_abx <- coxph(Surv(days, vitalstatus) ~ ppi +  abx_iostart, data = CoRR)
+summary(ppi_abx)
+
+ppi_staging <-coxph(Surv(days, vitalstatus) ~ ppi +  staging, data = CoRR)
+summary(ppi_staging)
+
+ppi_cci <- coxph(Surv(days, vitalstatus) ~ ppi +  cci_number, data = CoRR)
+summary(ppi_cci)
+```
+```{r}
+model2 <- coxph(Surv(days, vitalstatus) ~ h2b_iostart, data = CoRR)
+summary(model2)
+
+h2b_abx <- coxph(Surv(days, vitalstatus) ~ h2b_iostart + abx_iostart, data = CoRR)
+summary(h2b_abx)
+
+h2b_staging <- coxph(Surv(days, vitalstatus) ~ h2b_iostart + staging, data = CoRR)
+summary(h2b_staging)
+
+h2b_cci <- coxph(Surv(days, vitalstatus) ~ h2b_iostart + cci_number, data = CoRR)
+summary(h2b_cci)
+```
+
