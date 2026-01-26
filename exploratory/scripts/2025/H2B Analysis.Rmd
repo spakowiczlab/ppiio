@@ -1,0 +1,150 @@
+---
+title: "H2B Analysis"
+author: "Anna Petouhoff"
+date: "2026-01-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+library(ggplot2)
+library(survival)
+library(survminer)
+library(svglite)
+library(patchwork)
+```
+
+
+```{r}
+df <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") %>%
+  select("days", "vitalstatus", "line_of_therapy", "prior_chemo", "chemo_greater_one_year", "h2b_iostart", "H2B.days.to.iostart")
+```
+
+
+```{r}
+all_surv <- survfit(Surv(days, vitalstatus) ~ h2b_iostart, data = df)
+
+all_surv_plot <- ggsurvplot(all_surv, 
+                            pval = T, 
+                            risk.table = T,
+                            tables.height = 0.29,
+                            title = "OS for All Cancers",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed H2Bs"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 9))
+all_surv_plot
+combined_all_surv <- all_surv_plot$plot / all_surv_plot$table + plot_layout(heights = c(3, 1))
+combined_all_surv
+```
+
+```{r}
+first_line <- survfit(Surv(days, vitalstatus) ~ h2b_iostart, data = df[df$line_of_therapy == 1,])
+
+first_line_plot <- ggsurvplot(first_line, pval = T, risk.table = T, tables.height = 0.29,
+                              title = "OS for First Line ICI",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed H2B's"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 9))
+
+first_line_plot
+combined_first_line <- first_line_plot$plot / first_line_plot$table + plot_layout(heights = c(3, 1))
+combined_first_line
+```
+```{r}
+second_line <- survfit(Surv(days, vitalstatus) ~ h2b_iostart, data = df[df$line_of_therapy != 1,])
+
+second_line_plot <- ggsurvplot(second_line, pval = T, risk.table = T, tables.height = 0.29,
+                               title = "OS for Second Line ICI and Beyond",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed H2B"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 9))
+
+second_line_plot
+combined_second_line <- second_line_plot$plot / second_line_plot$table + plot_layout(heights = c(3, 1))
+combined_second_line
+```
+```{r}
+no_chemo <- survfit(Surv(days, vitalstatus) ~ h2b_iostart, data = df[df$prior_chemo == "no",])
+
+no_chemo_plot <- ggsurvplot(no_chemo, pval = T, risk.table = T,
+                             tables.height = 0.29,
+                            title = "OS for No Prior Chemotherapy",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed H2B's"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 9)) 
+no_chemo_plot
+combined_no_chemo <- no_chemo_plot$plot / no_chemo_plot$table + plot_layout(heights = c(3, 1))
+combined_no_chemo
+```
+```{r}
+chemo <- survfit(Surv(days, vitalstatus) ~ h2b_iostart, data = df[df$prior_chemo == "yes",])
+
+chemo_plot <- ggsurvplot(chemo, pval = T, risk.table = T, tables.height = 0.29,
+                         title = "OS for Prior Chemotherapy",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed H2B's"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 12)) 
+chemo_plot
+combined_chemo <- chemo_plot$plot / chemo_plot$table + plot_layout(heights = c(3, 1))
+combined_chemo
+```
+
+
+```{r}
+more_than_one_year <- survfit(Surv(days, vitalstatus) ~ h2b_iostart, data = df[df$chemo_greater_one_year == 1,])
+
+more_than_one_year_plot <- ggsurvplot(more_than_one_year, pval = T, risk.table = T,  tables.height = 0.29,
+                                      title = "OS for Chemotherapy Greater than One Year",
+                           legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed H2B's"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 9)) 
+more_than_one_year_plot
+combined_more_than_one_year <- more_than_one_year_plot$plot / more_than_one_year_plot$table + plot_layout(heights = c(3, 1))
+combined_more_than_one_year
+```
+```{r}
+less_than_one_year <- survfit(Surv(days, vitalstatus) ~ h2b_iostart, data = df[df$chemo_greater_one_year == 0,])
+
+less_than_one_year_plot <- ggsurvplot(less_than_one_year, pval = T, risk.table = T, tables.height = 0.29,
+                                      title = "OS for Chemotherapy One Year or Less",
+                            legend.title = "",
+                            ylab = "",
+                            legend.labs = c("Not Prescribed", "Prescribed H2B's"),
+                            palette = c("slateblue2","lightsalmon2"),
+                            fontsize = 4,
+                            font.legend = list(size= 9)) 
+less_than_one_year_plot
+combined_less_than_one_year <- less_than_one_year_plot$plot / less_than_one_year_plot$table + plot_layout(heights = c(3, 1))
+combined_less_than_one_year
+```
+```{r}
+ggsave("../../figures/2025/H2B/H2B_all_cancers_KM.svg", plot = combined_all_surv, device = "svg", width = 8, height = 6)
+ggsave("../../figures/2025/H2B/H2B_first_line_KM.svg", plot = combined_first_line, device = "svg", width = 8, height = 6)
+ggsave("../../figures/2025/H2B/H2B_second_line_KM.svg", plot = combined_second_line, device = "svg", width = 8, height = 6)
+ggsave("../../figures/2025/H2B/H2B_no_chemo_KM.svg", plot = combined_no_chemo, device = "svg", width = 8, height = 6)
+ggsave("../../figures/2025/H2B/H2B_chemo_KM.svg", plot = combined_chemo, device = "svg", width = 8, height = 6)
+ggsave("../../figures/2025/H2B/H2B_more_than_one_year_KM.svg", plot = combined_more_than_one_year, device = "svg", width = 8, height = 6)
+ggsave("../../figures/2025/H2B/H2B_less_than_one_year.svg", plot = combined_less_than_one_year, device = "svg", width = 8, height = 6)
+```
+
