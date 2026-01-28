@@ -200,7 +200,7 @@ heat.plot <- heat.data %>%
                        labels = c("<0.01", "0.01", "0.02","0.03", "0.04","0.05","0.1", "0.2", "0.5", "1")) +
   scale_shape_manual(breaks = c("black", "red"), values = c("-", "+"), 
                      labels = c("HR>1", "HR<1"), name = "Direction") +
-  theme_classic() +
+  theme_classic(base_size = 9) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_x_discrete(breaks = meds_iostart, 
                    labels = c("H2B", "NSAIDs", "PPI", "Statins", "CS", "ABx")) +
@@ -208,6 +208,6 @@ heat.plot <- heat.data %>%
                    labels = c('Other', 'Melanoma', 'Non-small cell lung cancer', 'Renal cell carcinoma',"Head and neck carcinoma", "All"))
 heat.plot
 
-ggsave("../../figures/2025/AllMeds_Heatmap.svg", device = "svg", width = 8, height = 6)
+ggsave("../../figures/2025/AllMeds_Heatmap.svg", device = "svg", width = 3, height = 2.5)
 
 ```
