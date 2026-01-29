@@ -10,15 +10,14 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(dplyr)
 library(UpSetR)
+library(ComplexUpset)
+library(ggplot2)
 ```
 
 
 ```{r}
 df <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") %>%
   select( ppi, statin, h2b_iostart, steroid_iostart, abx_iostart, nsaid_iostart)
-```
-
-```{r}
 df <- df %>%
   rename(
     `PPI` = ppi,
@@ -26,8 +25,23 @@ df <- df %>%
     `H2B` = h2b_iostart,
     `Steroids` = steroid_iostart,
     `ABx` = abx_iostart,
-    `NSAIDs` = nsaid_iostart
-  )
-upset(df, sets = c("PPI", "Statin", "H2B", "Steroids", "ABx", "NSAIDs"), nintersects =20, main.bar.color = "slateblue2", matrix.color = "black", order.by = "freq")
+    `NSAIDs` = nsaid_iostart)
 ```
+
+```{r}
+svg("cm_upset.svg", width = 6, height = 3.5)
+upset(df,
+      sets = c("NSAIDs", "ABx", "Steroids", "H2B", "Statin", "PPI"), 
+     order.by = "freq",             
+      main.bar.color = "slateblue2",
+      sets.bar.color = NA,
+     sets.x.label ="",
+     set_size.show = FALSE,
+     text.scale = c(1.5, 1, 2.0, 0, 1.25, 1.25))
+dev.off()
+
+
+```
+
+
 

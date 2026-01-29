@@ -193,7 +193,7 @@ heat.plot <- heat.data %>%
   ggplot(aes(meds, fct_relevel(cancer, 'Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma', "head and neck carcinoma", "All"))) +
   geom_tile(aes(fill = p.value)) +
   labs(x = "", y = "") +
-  geom_point(aes(shape = labcol), size = 5) +
+  geom_point(aes(shape = labcol), size = 3) +
   scale_fill_distiller(guide = "legend", breaks = c(0.000000000001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.5, 1), 
                        limits = c(0, 1), values = c(0.000000000001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.5, 1),
                        type = "div", palette = "RdBu", direction = 1, 
@@ -201,13 +201,33 @@ heat.plot <- heat.data %>%
   scale_shape_manual(breaks = c("black", "red"), values = c("-", "+"), 
                      labels = c("HR>1", "HR<1"), name = "Direction") +
   theme_classic(base_size = 9) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+    axis.title = element_blank(),
+    legend.key.size = unit(0.3, "cm"),      # Shrinks the actual color boxes/shapes
+    legend.text = element_text(size = 7),    # Shrinks the label text
+    legend.title = element_text(size = 8),   # Shrinks the "p.value" and "Direction" titles
+    legend.margin = margin(0, 0, 0, 0),      # Removes extra space around legends
+    legend.spacing.y = unit(0.1, "cm")       # Tightens space between the two legends
+  ) +
   scale_x_discrete(breaks = meds_iostart, 
                    labels = c("H2B", "NSAIDs", "PPI", "Statins", "CS", "ABx")) +
-  scale_y_discrete(breaks = c('Other', 'melanoma', 'non-small cell lung cancer', 'renal cell carcinoma', "head and neck carcinoma", "All"), 
-                   labels = c('Other', 'Melanoma', 'Non-small cell lung cancer', 'Renal cell carcinoma',"Head and neck carcinoma", "All"))
+scale_y_discrete(
+  breaks = c('Other', 'melanoma', 'non-small cell lung cancer',
+             'renal cell carcinoma', 'head and neck carcinoma', 'All'),
+  labels = c(
+    'Other',
+    'Melanoma',
+    'Non-small cell\nlung cancer',
+    'Renal cell\ncarcinoma',
+    'Head and\nneck \ncarcinoma',
+    'All'
+  )
+)
 heat.plot
 
-ggsave("../../figures/2025/AllMeds_Heatmap.svg", device = "svg", width = 3, height = 2.5)
+ggsave("../../figures/2025/AllMeds_Heatmap.svg", device = "svg", width = 3, height = 3.5)
 
 ```
+
+

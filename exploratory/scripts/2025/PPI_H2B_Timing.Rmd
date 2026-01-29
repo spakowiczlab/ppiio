@@ -22,7 +22,8 @@ library(gridExtra)
 
 read in data
 ```{r}
-db <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") 
+db <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") %>%
+  select(days, vitalstatus, PPI.days.to.iostart,H2B.days.to.iostart)
 ```
 
 # Hazard ratio overtime
@@ -163,15 +164,15 @@ ggplot(data = allpvaltime, aes(x = leftanchor, y = hazard.ratio)) +
   geom_ribbon(aes(ymin = confint.low, ymax = confint.high, fill = source), alpha = 0.5) +
   geom_hline(yintercept = 1) +
   scale_color_manual(aesthetics = c("fill", "color"), breaks = c("PPI", "H2B"), 
-                     values = c("darkred", "darkblue"), name = "Drug") +
+                     values = c("darkred", "darkgreen"), name = "Drug") +
   labs(title = "", x = "Days relative to ICI start",y = "Hazard Ratio" ) +
   theme_bw() + 
-  theme(axis.text = element_text(size = 12), axis.title = element_text(size = 15))
+  theme(axis.text = element_text(size = 8), axis.title = element_text(size = 8))
 ```
 
 # Save Plot
 ```{r}
-ggsave("../../figures/2025/PPI_H2B_Timing.svg", device = "svg", width = 8, height = 4)
+ggsave("../../figures/2025/PPI_H2B_Timing.svg", device = "svg", width = 6, height = 2)
 ```
 ```
 

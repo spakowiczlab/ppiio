@@ -12,6 +12,7 @@ library(survival)
 library(dplyr)
 library(tidyverse)
 library(tidyr)
+library(broom)
 ```
 
 ```{r}
@@ -20,9 +21,6 @@ CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted
 ```
 
 ```{r}
-model <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR)
-summary(model)
-
 ppi_abx <- coxph(Surv(days, vitalstatus) ~ ppi +  abx_iostart, data = CoRR)
 summary(ppi_abx)
 
@@ -32,10 +30,55 @@ summary(ppi_staging)
 ppi_cci <- coxph(Surv(days, vitalstatus) ~ ppi +  cci_number, data = CoRR)
 summary(ppi_cci)
 ```
-```{r}
-model2 <- coxph(Surv(days, vitalstatus) ~ h2b_iostart, data = CoRR)
-summary(model2)
 
+```{r}
+# extract results from each model 
+res1 <- tidy(ppi_abx, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "PPI, controlling for Abx")
+res2 <- tidy(ppi_staging, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "PPI, controlling for Staging")
+res3 <- tidy(ppi_cci, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "PPI, controlling for CCI")
+
+# combine the results 
+all_res <- bind_rows(res1, res2, res3)
+
+# filter to show only the PPI row
+ppi_only <- all_res %>%
+  filter(term == "ppi") %>%
+  mutate(p_label = ifelse(p.value < 0.001, "p < 0.001", paste0("p = ", round(p.value, 3))))
+
+ppi_fp <- ggplot(ppi_only, aes(x = estimate, y = model)) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "grey50") +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2, color = "slateblue") +
+  geom_point(size = 3.5, color = "slateblue4") +
+  # p-values: adjusted hjust to prevent overlap with the error bar end
+  geom_text(aes(label = p_label, x = conf.high), 
+            hjust = -0.1, vjust = 0.5, size = 4) + 
+  # Increased the right-side expansion (0.6) to make room for text
+  scale_x_log10(expand = expansion(mult = c(0.1, 0.6))) + 
+  labs(x = "Hazard Ratio (Log Scale)", 
+       y = "",
+       title = "PPI Impact on Survival Across Models") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 12, margin = margin(t = 10)),
+    axis.text.x  = element_text(size = 11),
+    axis.text.y  = element_text(size = 11, color = "black"),
+    plot.title   = element_text(size = 13, face = "bold", hjust = 0.5),
+    plot.margin  = margin(t = 10, r = 20, b = 10, l = 10), # Extra right margin
+    panel.grid.minor = element_blank()
+  )
+
+
+ggsave("../../figures/2025/PPI_forest_plot.svg", 
+       plot = ppi_fp, 
+       device = "svg", 
+       width = 6, height = 3) # Doubling the size prevents the "crowded" look
+
+ggsave("../../figures/2025/PPI_forest_plot.svg", plot = ppi_fp, device = "svg", width = 6, height = 3)
+```
+
+
+
+```{r}
 h2b_abx <- coxph(Surv(days, vitalstatus) ~ h2b_iostart + abx_iostart, data = CoRR)
 summary(h2b_abx)
 
@@ -45,4 +88,104 @@ summary(h2b_staging)
 h2b_cci <- coxph(Surv(days, vitalstatus) ~ h2b_iostart + cci_number, data = CoRR)
 summary(h2b_cci)
 ```
+```{r}
+# extract results from each model 
+res4 <- tidy(h2b_abx, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "H2B, controlling for Abx")
+res5 <- tidy(h2b_staging, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "H2B, controlling for Staging")
+res6 <- tidy(h2b_cci, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "H2B, controling for CCI")
+
+# combine the results 
+all_res2 <- bind_rows(res4, res5, res6)
+
+# filter to show only the PPI row
+h2b_only <- all_res2 %>%
+  filter(term == "h2b_iostart") %>%
+  mutate(p_label = ifelse(p.value < 0.001, "p < 0.001", paste0("p = ", round(p.value, 3))))
+
+# create a forest plot
+h2b_fp <- ggplot(h2b_only, aes(x = estimate, y = model)) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "grey50") +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2, color = "slateblue") +
+  geom_point(size = 3.5, color = "slateblue4") +
+  # Add the p-value text
+  geom_text(aes(label = p_label, x = conf.high), 
+            hjust = -0.2, vjust = -0.5, size = 3.5) +
+  # Expand the x-axis slightly so the text doesn't get cut off
+  scale_x_log10(expand = expansion(mult = c(0.1, 0.4))) + 
+  labs(x = "Hazard Ratio (Log Scale)", 
+       y = "",
+       title = "H2B Impact on Survival Across Models") +
+  theme_minimal()+
+  theme(
+    axis.title.x = element_text(size = 12, margin = margin(t = 10)),
+    axis.text.x = element_text(size = 11),
+    axis.text.y = element_text(size =11, color = "black"),
+    plot.title = element_text(size = 13, face = "bold", hjust = 0.5),
+    plot.margin = margin(t = 10, r = 10, b = 10, l = 10),
+    panel.grid.minor = element_blank()
+  )
+
+h2b_fp
+
+ggsave("../../figures/2025/H2B_forest_plot.svg", plot = h2b_fp, device = "svg", width = 6, height = 3)
+```
+
+
+```{r}
+# ppi+abx
+CoRR$ppiabx <- interaction(CoRR$ppi, CoRR$abx_iostart)
+
+CoRR$ppiabx <- factor (CoRR$ppiabx,
+                       levels = c("0.0", "0.1", "1.0", "1.1"),
+                       labels = c("No PPI + No ABx",
+                                 "No PPI + ABx",
+                                 "PPI + No ABx",
+                                 "PPI + ABx"))
+CoRR_km <- survfit(Surv(days, vitalstatus) ~ ppiabx, data = CoRR)
+CoRR_km_plot <- ggsurvplot(CoRR_km, 
+                            pval = F, 
+                            risk.table = T,
+                            tables.height = 0.36,
+                            title = "CoRR: OS for PPI + ABx",
+                            legend.title = "",
+                            legend.labs = c("No PPI + No ABx",
+                                 "No PPI + ABx",
+                                 "PPI + No ABx",
+                                 "PPI + ABx"),
+                            ylab = "",
+                            palette = "Dark2",
+                            fontsize = 4,
+                            font.legend = list(size= 9))
+CoRR_km_plot
+```
+
+
+```{r}
+# h2b+abx
+CoRR$h2babx <- interaction(CoRR$h2b_iostart, CoRR$abx_iostart)
+
+CoRR$h2babx <- factor (CoRR$h2babx,
+                       levels = c("0.0", "0.1", "1.0", "1.1"),
+                       labels = c("No H2b + No ABx",
+                                 "No H2b + ABx",
+                                 "H2b + No ABx",
+                                 "H2b + ABx"))
+CoRR_km2 <- survfit(Surv(days, vitalstatus) ~ h2babx, data = CoRR)
+CoRR_km2_plot <- ggsurvplot(CoRR_km2, 
+                            pval = F, 
+                            risk.table = T,
+                            tables.height = 0.36,
+                            title = "CoRR: OS for H2b + ABx",
+                            legend.title = "",
+                            legend.labs = c("No H2b + No ABx",
+                                 "No H2b + ABx",
+                                 "H2b + No ABx",
+                                 "H2b + ABx"),
+                            ylab = "",
+                            palette = "Dark2",
+                            fontsize = 4,
+                            font.legend = list(size= 9))
+CoRR_km2_plot
+```
+
 
