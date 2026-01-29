@@ -1,0 +1,178 @@
+---
+title: "PPI_H2b_Timing"
+author: "Anna Petouhoff"
+date: "2025-03-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(survival)
+library(survminer)
+library(glue)
+library(RColorBrewer)
+library(forcats)
+library(broom)
+library(ggdendro)
+library(gridExtra)
+
+```
+
+read in data
+```{r}
+db <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") %>%
+  select(days, vitalstatus, PPI.days.to.iostart,H2B.days.to.iostart)
+```
+
+# Hazard ratio overtime
+```{r}
+check.window <- function(vect, per){
+  wind <- per[1]:per[2]
+  wind <- glue_collapse(as.character(wind), sep = ",|,")
+  wind <- paste(",", wind, ",", sep = "")
+  ifelse(grepl(pattern = wind, x = vect), 1, 0)
+}
+```
+
+```{r}
+db <- db %>%
+  mutate(ppi.28.28 = check.window(paste(",", PPI.days.to.iostart, ",", sep = ""), c(-28,28))) %>%
+  mutate(h2b.28.28 = check.window(paste(",", H2B.days.to.iostart, ",", sep = ""), c(-28,28)))
+```
+
+PPI's
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+ppifloattime <- db %>%
+  select(days, vitalstatus, PPI.days.to.iostart) %>%
+  mutate(PPI.days.to.iostart = paste(",", PPI.days.to.iostart, ",", sep = ""))
+ppi.zero.cohort <- db %>%
+  select(days, vitalstatus, ppi.28.28) %>%
+  filter(ppi.28.28 == 0) %>%
+  mutate(tmp = ppi.28.28) %>%
+  select(days, vitalstatus, tmp)
+leftanchor <-c(-180:151)
+ppiwindresults <- list()
+i <- 1
+ppifloattime$tmp2 <- check.window(ppifloattime$PPI.days.to.iostart, c(leftanchor[i], leftanchor[i]+29))
+  
+for(i in 1:length(leftanchor)){
+  j <- leftanchor[i]
+  ppifloattime$tmp <- check.window(ppifloattime$PPI.days.to.iostart, c(j, j+29))
+
+  ppifloattime <- ppifloattime %>%
+    mutate(tmp3 = tmp2 -tmp) %>%
+    filter(tmp3 == 0 | tmp3 == -1) %>%
+    mutate(tmp2 = tmp)
+
+  ppifloatforsurv <- ppifloattime %>%
+    filter(tmp == 1) %>%
+    bind_rows(ppi.zero.cohort)
+
+  try({
+     survtemp <- coxph(Surv(days, vitalstatus) ~ tmp, data = ppifloatforsurv) %>%
+      summary()
+    
+    pvals <- survtemp$coefficients %>%
+      as.data.frame() %>%
+      rownames_to_column(var = "term") %>%
+      mutate(p.value = `Pr(>|z|)`) %>%
+      select(term, p.value)
+    conf.int <- survtemp$conf.int %>%
+      as.data.frame() %>%
+      rownames_to_column(var = "term") %>%
+      mutate(hazard.ratio = `exp(coef)`,
+             confint.low = `lower .95`,
+             confint.high = `upper .95`,
+             leftanchor = j)  %>%
+      select(term, hazard.ratio, confint.low, confint.high, leftanchor) %>%
+      left_join(pvals)
+    
+      ppiwindresults[[i]] <- conf.int
+  })
+
+}
+
+ppipvaltime <- bind_rows(ppiwindresults)
+ppipvaltime$leftanchor <- ppipvaltime$leftanchor + 15
+```
+
+H2B's
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+h2bfloattime <- db %>%
+  select(days, vitalstatus, H2B.days.to.iostart) %>%
+  mutate(H2B.days.to.iostart = paste(",", H2B.days.to.iostart, ",", sep = ""))
+h2b.zero.cohort <- db %>%
+  select(days, vitalstatus, h2b.28.28) %>%
+  filter(h2b.28.28 == 0) %>%
+  mutate(tmp = h2b.28.28) %>%
+  select(days, vitalstatus, tmp)
+leftanchor <-c(-180:151)
+h2bwindresults <- list()
+i <- 1
+h2bfloattime$tmp2 <- check.window(h2bfloattime$H2B.days.to.iostart, c(leftanchor[i], leftanchor[i]+29))
+  
+for(i in 1:length(leftanchor)){
+  j <- leftanchor[i]
+  h2bfloattime$tmp <- check.window(h2bfloattime$H2B.days.to.iostart, c(j, j+29))
+
+  h2bfloattime <- h2bfloattime %>%
+    mutate(tmp3 = tmp2 -tmp) %>%
+    filter(tmp3 == 0 | tmp3 == -1) %>%
+    mutate(tmp2 = tmp)
+
+  h2bfloatforsurv <- h2bfloattime %>%
+    filter(tmp == 1) %>%
+    bind_rows(h2b.zero.cohort)
+
+    try({
+     survtemp <- coxph(Surv(days, vitalstatus) ~ tmp, data = h2bfloatforsurv) %>%
+      summary()
+    
+    pvals <- survtemp$coefficients %>%
+      as.data.frame() %>%
+      rownames_to_column(var = "term") %>%
+      mutate(p.value = `Pr(>|z|)`) %>%
+      select(term, p.value)
+    conf.int <- survtemp$conf.int %>%
+      as.data.frame() %>%
+      rownames_to_column(var = "term") %>%
+      mutate(hazard.ratio = `exp(coef)`,
+             confint.low = `lower .95`,
+             confint.high = `upper .95`,
+             leftanchor = j)  %>%
+      select(term, hazard.ratio, confint.low, confint.high, leftanchor) %>%
+      left_join(pvals)
+    
+          h2bwindresults[[i]] <- conf.int
+  })
+
+}
+
+h2bpvaltime <- bind_rows(h2bwindresults)
+h2bpvaltime$leftanchor <- h2bpvaltime$leftanchor + 15
+```
+
+# Combine + plot results
+```{r fig.height=8, fig.width=10}
+ppipvaltime$source <- "PPI"
+h2bpvaltime$source <- "H2B"
+allpvaltime <- bind_rows(ppipvaltime, h2bpvaltime)
+ggplot(data = allpvaltime, aes(x = leftanchor, y = hazard.ratio)) +
+  geom_line(aes(color = source)) +
+  geom_ribbon(aes(ymin = confint.low, ymax = confint.high, fill = source), alpha = 0.5) +
+  geom_hline(yintercept = 1) +
+  scale_color_manual(aesthetics = c("fill", "color"), breaks = c("PPI", "H2B"), 
+                     values = c("darkred", "darkgreen"), name = "Drug") +
+  labs(title = "", x = "Days relative to ICI start",y = "Hazard Ratio" ) +
+  theme_bw() + 
+  theme(axis.text = element_text(size = 8), axis.title = element_text(size = 8))
+```
+
+# Save Plot
+```{r}
+ggsave("../figures/PPI_H2B_Timing.svg", device = "svg", width = 6, height = 2)
+```
+```
+

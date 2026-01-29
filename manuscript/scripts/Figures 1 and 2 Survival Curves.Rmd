@@ -1,0 +1,371 @@
+---
+title: "CoRR Survival Curves"
+author: "Anna Petouhoff"
+date: "2025-02-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(tidyverse)
+library(tidyr)
+library(ggplot2)
+library(survival)
+library(survminer)
+library(svglite)
+library(patchwork)
+```
+
+```{r}
+CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") %>%
+  select(days, vitalstatus, ppi,line_of_therapy,prior_chemo, chemo_greater_one_year)
+```
+
+# PPI Use and OS across all cancers 
+```{r}
+all_surv <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR)
+all_surv_plot <- ggsurvplot(
+    all_surv, 
+    pval = TRUE, 
+    risk.table = TRUE,
+    title = "OS: All Cancers",
+    legend.title = "",
+    ylab = "Survival Probability",
+    xlab = "Time (days)",
+    legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+    palette = c("slateblue2","lightsalmon2"),
+    legend = c(0.8, 0.8),         
+    font.main = 9,
+    font.x = 8,
+    font.y = 8,
+    font.tickslab = 7,
+    font.legend = 7,
+    pval.size = 3.5,                
+    pval.coord = c(100, 0.15),     
+    risk.table.fontsize = 2.8,
+    tables.theme = theme_survminer() 
+)
+
+all_surv_plot$table$theme$axis.text.y <- element_text(size = 7, color = "black")
+all_surv_plot$table$theme$plot.title <- element_blank()
+
+all_surv_plot$table <- all_surv_plot$table + 
+  theme(
+    axis.text.x = element_text(size = 7), 
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.ticks.length = unit(0.05, "cm"),
+    plot.margin = margin(t = -15, r = 5, b = 5, l = 5)
+  )
+
+all_surv_plot$plot <- all_surv_plot$plot + 
+  theme(axis.title.y = element_text(vjust = -15, size = 8),
+        plot.margin = margin(t = 5, r = 5, b = -15, l = 5)
+  )
+
+combined_all_surv <- all_surv_plot$plot / all_surv_plot$table + 
+  plot_layout(heights = c(4, 1))
+
+ggsave("../figures/PPI_all_cancers_KM.svg", 
+       plot = combined_all_surv, width = 3.5, height = 2.5)
+```
+
+# PPI use and OS in first line 
+```{r}
+first_line <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$line_of_therapy == 1,])
+
+first_line_plot <- ggsurvplot(
+    first_line, 
+    pval = TRUE, 
+    risk.table = TRUE,
+    title = "OS For First Line ICIs",
+    legend.title = "",
+    ylab = "Survival Probability",
+    xlab = "Time (days)",
+    legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+    palette = c("slateblue2","lightsalmon2"),
+    legend = c(0.8, 0.8),         
+    font.main = 9,
+    font.x = 8,
+    font.y = 8,
+    font.tickslab = 7,
+    font.legend = 7,
+    pval.size = 3.5,                
+    pval.coord = c(100, 0.15),     
+    risk.table.fontsize = 2.8,
+    tables.theme = theme_survminer() 
+)
+
+first_line_plot$table$theme$axis.text.y <- element_text(size = 7, color = "black")
+first_line_plot$table$theme$plot.title <- element_blank()
+
+first_line_plot$table <- first_line_plot$table + 
+  theme(
+    axis.text.x = element_text(size = 7), 
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.ticks.length = unit(0.05, "cm"),
+    plot.margin = margin(t = -15, r = 5, b = 5, l = 5)
+  )
+
+first_line_plot$plot <- first_line_plot$plot + 
+  theme(axis.title.y = element_text(vjust = -15, size = 8),
+        plot.margin = margin(t = 5, r = 5, b = -15, l = 5)
+  )
+
+combined_first_line <- first_line_plot$plot / first_line_plot$table + 
+  plot_layout(heights = c(4, 1))
+
+ggsave("../figures/PPI_first_line_KM.svg", plot = combined_first_line, device = "svg", width = 3.5, height = 2.5)
+```
+
+# PPI use and OS in second and beyond
+```{r}
+second_line <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$line_of_therapy != 1,])
+
+second_line_plot <- ggsurvplot(
+    second_line, 
+    pval = TRUE, 
+    risk.table = TRUE,
+    title = "OS For Second Line ICIs",
+    legend.title = "",
+    ylab = "Survival Probability",
+    xlab = "Time (days)",
+    legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+    palette = c("slateblue2","lightsalmon2"),
+    legend = c(0.8, 0.8),         
+    font.main = 9,
+    font.x = 8,
+    font.y = 8,
+    font.tickslab = 7,
+    font.legend = 7,
+    pval.size = 3.5,                
+    pval.coord = c(100, 0.15),     
+    risk.table.fontsize = 2.8,
+    tables.theme = theme_survminer() 
+)
+
+second_line_plot$table$theme$axis.text.y <- element_text(size = 7, color = "black")
+second_line_plot$table$theme$plot.title <- element_blank()
+
+second_line_plot$table <- second_line_plot$table + 
+  theme(
+    axis.text.x = element_text(size = 7), 
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.ticks.length = unit(0.05, "cm"),
+    plot.margin = margin(t = -15, r = 5, b = 5, l = 5)
+  )
+
+second_line_plot$plot <- second_line_plot$plot + 
+  theme(axis.title.y = element_text(vjust = -15, size = 8),
+        plot.margin = margin(t = 5, r = 5, b = -15, l = 5)
+  )
+
+combined_second_line <- second_line_plot$plot / second_line_plot$table + 
+  plot_layout(heights = c(4, 1))
+
+ggsave("../figures/PPI_second_line_KM.svg", plot = combined_second_line, device = "svg", width = 3.5, height = 2.5)
+```
+
+# PPI use and OS without prior chemotherapy
+```{r}
+no_chemo <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$prior_chemo == "no",])
+
+no_chemo_plot <- ggsurvplot(
+    no_chemo, 
+    pval = TRUE, 
+    risk.table = TRUE,
+    title = "OS For No Prior Chemotherapy",
+    legend.title = "",
+    ylab = "Survival Probability",
+    xlab = "Time (days)",
+    legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+    palette = c("slateblue2","lightsalmon2"),
+    legend = c(0.8, 0.8),         
+    font.main = 9,
+    font.x = 8,
+    font.y = 8,
+    font.tickslab = 7,
+    font.legend = 7,
+    pval.size = 3.5,                
+    pval.coord = c(100, 0.15),     
+    risk.table.fontsize = 2.8,
+    tables.theme = theme_survminer() 
+)
+
+no_chemo_plot$table$theme$axis.text.y <- element_text(size = 7, color = "black")
+no_chemo_plot$table$theme$plot.title <- element_blank()
+
+no_chemo_plot$table <- no_chemo_plot$table + 
+  theme(
+    axis.text.x = element_text(size = 7), 
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.ticks.length = unit(0.05, "cm"),
+    plot.margin = margin(t = -15, r = 5, b = 5, l = 5)
+  )
+
+no_chemo_plot$plot <- no_chemo_plot$plot + 
+  theme(axis.title.y = element_text(vjust = -15, size = 8),
+        plot.margin = margin(t = 5, r = 5, b = -15, l = 5)
+  )
+
+combined_no_chemo <- no_chemo_plot$plot / no_chemo_plot$table + 
+  plot_layout(heights = c(4, 1))
+ggsave("../figures/PPI_no_chemo_KM.svg", plot = combined_no_chemo, device = "svg", width = 3.5, height = 2.5)
+```
+
+# PPI use and OS with prior chemotherapy
+```{r}
+chemo <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$prior_chemo == "yes",])
+
+chemo_plot <- ggsurvplot(
+    chemo, 
+    pval = TRUE, 
+    risk.table = TRUE,
+    title = "OS For Prior Chemotherapy",
+    legend.title = "",
+    ylab = "Survival Probability",
+    xlab = "Time (days)",
+    legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+    palette = c("slateblue2","lightsalmon2"),
+    legend = c(0.8, 0.8),         
+    font.main = 9,
+    font.x = 8,
+    font.y = 8,
+    font.tickslab = 7,
+    font.legend = 7,
+    pval.size = 3.5,                
+    pval.coord = c(100, 0.15),     
+    risk.table.fontsize = 2.8,
+    tables.theme = theme_survminer() 
+)
+
+chemo_plot$table$theme$axis.text.y <- element_text(size = 7, color = "black")
+chemo_plot$table$theme$plot.title <- element_blank()
+
+chemo_plot$table <- chemo_plot$table + 
+  theme(
+    axis.text.x = element_text(size = 7), 
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.ticks.length = unit(0.05, "cm"),
+    plot.margin = margin(t = -15, r = 5, b = 5, l = 5)
+  )
+
+chemo_plot$plot <- chemo_plot$plot + 
+  theme(axis.title.y = element_text(vjust = -15, size = 8),
+        plot.margin = margin(t = 5, r = 5, b = -15, l = 5)
+  )
+
+combined_chemo <- chemo_plot$plot / chemo_plot$table + 
+  plot_layout(heights = c(4, 1))
+
+ggsave("../figures/PPI_chemo_KM.svg", plot = combined_chemo, device = "svg", width = 3.5, height = 2.5)
+```
+
+# PPI use and OS if patient recieved chemo more than 1 year
+
+```{r}
+more_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$chemo_greater_one_year == 1,])
+
+more_than_one_year_plot <- ggsurvplot(
+    more_than_one_year, 
+    pval = TRUE, 
+    risk.table = TRUE,
+    title = "OS For Chemotherapy Greater than One Year",
+    legend.title = "",
+    ylab = "Survival Probability",
+    xlab = "Time (days)",
+    legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+    palette = c("slateblue2","lightsalmon2"),
+    legend = c(0.8, 0.8),         
+    font.main = 8,
+    font.x = 8,
+    font.y = 8,
+    font.tickslab = 7,
+    font.legend = 7,
+    pval.size = 3.5,                
+    pval.coord = c(100, 0.15),     
+    risk.table.fontsize = 2.8,
+    tables.theme = theme_survminer() 
+)
+
+more_than_one_year_plot$table$theme$axis.text.y <- element_text(size = 7, color = "black")
+more_than_one_year_plot$table$theme$plot.title <- element_blank()
+
+more_than_one_year_plot$table <- more_than_one_year_plot$table + 
+  theme(
+    axis.text.x = element_text(size = 7), 
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.ticks.length = unit(0.05, "cm"),
+    plot.margin = margin(t = -15, r = 5, b = 5, l = 5)
+  )
+
+more_than_one_year_plot$plot <- more_than_one_year_plot$plot + 
+  theme(axis.title.y = element_text(vjust = -15, size = 8),
+        plot.margin = margin(t = 5, r = 5, b = -15, l = 5)
+  )
+
+combined_more_than_one_year <- more_than_one_year_plot$plot / more_than_one_year_plot$table + 
+  plot_layout(heights = c(4, 1))
+
+ggsave("../figures/PPI_more_than_one_year_KM.svg", plot = combined_more_than_one_year, device = "svg", width = 3.5, height = 2.5)
+```
+
+# PPI use and OS if patient recieved chemo less than 1 year
+```{r}
+less_than_one_year <- survfit(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$chemo_greater_one_year == 0,])
+
+less_than_one_year_plot <- ggsurvplot(
+    less_than_one_year, 
+    pval = TRUE, 
+    risk.table = TRUE,
+    title = "OS For Chemotherapy Less than One Year",
+    legend.title = "",
+    ylab = "Survival Probability",
+    xlab = "Time (days)",
+    legend.labs = c("Not Prescribed", "Prescribed PPI's"),
+    palette = c("slateblue2","lightsalmon2"),
+    legend = c(0.8, 0.8),         
+    font.main = 9,
+    font.x = 8,
+    font.y = 8,
+    font.tickslab = 7,
+    font.legend = 7,
+    pval.size = 3.5,                
+    pval.coord = c(100, 0.15),     
+    risk.table.fontsize = 2.8,
+    tables.theme = theme_survminer() 
+)
+
+less_than_one_year_plot$table$theme$axis.text.y <- element_text(size = 7, color = "black")
+less_than_one_year_plot$table$theme$plot.title <- element_blank()
+
+less_than_one_year_plot$table <- less_than_one_year_plot$table + 
+  theme(
+    axis.text.x = element_text(size = 7), 
+    axis.title.y = element_blank(),
+    axis.title.x = element_blank(),
+    axis.ticks.length = unit(0.05, "cm"),
+    plot.margin = margin(t = -15, r = 5, b = 5, l = 5)
+  )
+
+less_than_one_year_plot$plot <- less_than_one_year_plot$plot + 
+  theme(axis.title.y = element_text(vjust = -15, size = 8),
+        plot.margin = margin(t = 5, r = 5, b = -15, l = 5)
+  )
+
+combined_less_than_one_year <- less_than_one_year_plot$plot / less_than_one_year_plot$table + 
+  plot_layout(heights = c(4, 1))
+
+ggsave("../figures/PPI_less_than_one_year.svg", plot = combined_less_than_one_year, device = "svg", width = 3.5, height = 2.5)
+```
+
+
+
+
