@@ -16,13 +16,13 @@ library(grid)
 
 # load data 
 ```{r}
-load("../../data/Mitox/ra-long.rds")
-load("../../data/Mitox/clinical.rds")
-load("../../data/Mitox/mitox_microbiome_metadata.rds")
-load("../../data/Mitox/counts-wide.rds")
-load("../../data/Mitox/phylum-labels.rds")
-load("../../data/Mitox/taxonomy-key.rds")
-load("../../data/Mitox/ANCOM-BC2_response_baseline.RData")
+load("../data/Cohort_2/ra-long.rds")
+load("../data/Cohort_2/clinical.rds")
+load("../data/Cohort_2/mitox_microbiome_metadata.rds")
+load("../data/Cohort_2/counts-wide.rds")
+load("../data/Cohort_2/phylum-labels.rds")
+load("../data/Cohort_2/taxonomy-key.rds")
+load("../data/Cohort_2/ANCOM-BC2_response_baseline.RData")
 ```
 
 
@@ -135,7 +135,7 @@ p_bar <- phyl.ra %>%
     override.aes = list(linewidth = 0)
   ))
 
-ggsave("../../figures/2025/stackedbar.svg", device= "svg", height = 1.9, width = 4.5)
+ggsave("../figures/Figure3B.svg", device= "svg", height = 1.9, width = 4.5)
 ```
 
 
@@ -199,7 +199,7 @@ g <- ggplot(res_to_plot, aes(x = lfc_PPIYes, y = -log10(q_PPIYes), label = displ
            label = "No PPI Use", size = 3, fontface = "bold")
 
 
-ggsave("../../figures/2025/volcanoplot.svg", g, device = "svg", height = 2.5, width = 6)
+ggsave("../figures/Figure3E.svg", g, device = "svg", height = 2.5, width = 6)
 ```
 
 # structural zero box blot 
@@ -261,41 +261,20 @@ box.in <- rbind(r, nr) %>%
 colors <- c("#999933","#6699CC","#44AA99")
 colors <- c("darkgoldenrod2", "cyan4", "salmon2")
 ```
-```{r}
-box.in %>%
-  ggplot(aes(x = taxon, y=log(est.reads), fill = Phylum)) +
-  geom_boxplot(width = 0.5) +
-  geom_jitter() + 
-  scale_fill_manual(values = colors) +
-  facet_grid(~ PPI, scales = "free", space = "free") +
-  theme_bw(base_size = 8) +
-  theme(
-    panel.spacing = unit(1, "lines"), 
-    axis.text.x = element_text(angle = 45, hjust = 1),  
-    strip.text = element_text(size = 7),
-    legend.position = "none",
-  ) +
-  xlab("")
 
-ggsave("../../figures/2025/s0-boxplots.svg", device = "svg", height = 1.5, width = 6)
-
-```
 
 ```{r}
 box.in %>%
   ggplot(aes(x = taxon, y = log(est.reads), fill = Phylum)) +
-  # Using outlier.shape = NA because geom_jitter() will show the actual points
   geom_boxplot(width = 0.5, outlier.shape = NA, alpha = 0.7) +
   geom_jitter(size = 0.5, alpha = 0.4, width = 0.2) + 
   scale_fill_manual(values = colors) +
-  # Switching facet_grid to vertical rows to allow taxa names to breathe on the Y-axis
   facet_grid(PPI ~ ., scales = "free_y", space = "free_y") +
-  # Flipping coordinates is the "gold standard" for long labels
   coord_flip() +
   theme_bw(base_size = 10) +
   theme(
     panel.spacing = unit(0.5, "lines"), 
-    axis.text.y = element_text(face = "italic"), # Scientific names should be italicized
+    axis.text.y = element_text(face = "italic"), 
     strip.text = element_text(size = 10),
     legend.position = "none",
     plot.margin = margin(t = 5, r = 10, b = 5, l = 5)
@@ -303,8 +282,7 @@ box.in %>%
   xlab("") +
   ylab("log(est. reads)")
 
-# The width and height should now work much better
-ggsave("../../figures/2025/s0-boxplots.svg", device = "svg", height = 2, width = 6.5)
+ggsave("../figures/Figure3F.svg", device = "svg", height = 2, width = 6.5)
 ```
 
 

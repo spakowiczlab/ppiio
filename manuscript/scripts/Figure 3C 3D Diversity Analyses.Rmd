@@ -18,11 +18,11 @@ library(ggforce)
 ```
 
 ```{r}
-load("../../data/Mitox/ra-long.rds")
-load("../../data/Mitox/ra-wide.rds")
-load("../../data/Mitox/clinical.rds")
-load("../../data/Mitox/mitox_microbiome_metadata.rds")
-load("../../data/Mitox/counts-long.rds")
+load("../data/Cohort_2/ra-long.rds")
+load("../data/Cohort_2/ra-wide.rds")
+load("../data/Cohort_2/clinical.rds")
+load("../data/Cohort_2/mitox_microbiome_metadata.rds")
+load("../data/Cohort_2/counts-long.rds")
 ```
 
 ```{r}
@@ -89,7 +89,7 @@ alpha_diversity <- div.ra.resp %>%
   coord_cartesian(ylim = c(NA, max_y *1.15))
 
 
-ggsave("../../figures/2025/alpha_diversity.svg", device = "svg", plot= alpha_diversity, height = 1.75, width = 3)
+ggsave("../figures/Figure3C.svg", device = "svg", plot= alpha_diversity, height = 1.75, width = 3)
 ```
 
 
@@ -117,7 +117,7 @@ ppi_colors <- c("Yes" = "lightsalmon2", "No" = "cornflowerblue")
 
 group_means <- scores %>%
   group_by(PPI) %>%
-  summarize(PC1_mean = mean(PC1), PC2_mean = mean(PC2))
+  dplyr::summarize(PC1_mean = mean(PC1), PC2_mean = mean(PC2))
 radius <- 1
 
 beta_diversity <- ggplot(scores, aes(x = PC1, y = PC2, color = PPI)) +
@@ -125,26 +125,23 @@ beta_diversity <- ggplot(scores, aes(x = PC1, y = PC2, color = PPI)) +
   scale_color_manual(values = ppi_colors) + 
   theme_minimal() +
   labs(x = "PC1", y = "PC2", title = "Beta Diveristy Comparison") +
-  # stat_ellipse(aes(group = PPI), type = "norm", level = 0.95, linetype = 1, size =1)
   theme_minimal(base_size = 8) +
   geom_circle(data = group_means, aes(x0= PC1_mean, y0=PC2_mean, r=radius), inherit.aes=FALSE, color = "black", size =0.5) +
   theme(
     plot.title = element_text(size = 8, face = "bold"),
-    # --- LEGEND MINIATURIZATION ---
-    legend.title = element_text("PPI Use"),           # Removes "PPI" title to save space
-    legend.text = element_text(size = 7),      # Smaller legend text
-    legend.key.size = unit(0.3, "cm"),         # Smaller color boxes
-    legend.spacing.x = unit(0.1, "cm"),        # Tighten space between box and text
-    legend.margin = margin(0, 0, 0, 0),        # Remove padding around legend
-    legend.box.margin = margin(-5, -5, -5, -5), # Pull legend closer to plot
-    # Optionally move to bottom if it's too cramped on the side
+    legend.title = element_text("PPI Use"),           
+    legend.text = element_text(size = 7),      
+    legend.key.size = unit(0.3, "cm"),         
+    legend.spacing.x = unit(0.1, "cm"),        
+    legend.margin = margin(0, 0, 0, 0),        
+    legend.box.margin = margin(-5, -5, -5, -5), 
     legend.position = "right" 
   )
 
   
 beta_diversity
 
-ggsave("../../figures/2025/beta_diversity.svg", device = "svg", plot= beta_diversity, height = 1.5, width = 3)
+ggsave("../figures/Figure3D.svg", device = "svg", plot= beta_diversity, height = 1.5, width = 3)
 ```
 
 # Running Statistics 

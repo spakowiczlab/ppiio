@@ -10,8 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(dplyr)
 library(UpSetR)
-library(ComplexUpset)
-library(ggplot2)
 ```
 
 
@@ -29,8 +27,8 @@ df <- df %>%
 ```
 
 ```{r}
-svg("../figures/cm_upset.svg", width = 6, height = 3.5)
-upset(df,
+svg("../figures/Figure1B.svg", width = 6, height = 3.5)
+UpSetR::upset(df,
       sets = c("NSAIDs", "ABx", "Steroids", "H2B", "Statin", "PPI"), 
      order.by = "freq",             
       main.bar.color = "slateblue2",

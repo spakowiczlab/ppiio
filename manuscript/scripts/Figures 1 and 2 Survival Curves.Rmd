@@ -68,7 +68,7 @@ all_surv_plot$plot <- all_surv_plot$plot +
 combined_all_surv <- all_surv_plot$plot / all_surv_plot$table + 
   plot_layout(heights = c(4, 1))
 
-ggsave("../figures/PPI_all_cancers_KM.svg", 
+ggsave("../figures/Figure1D.svg", 
        plot = combined_all_surv, width = 3.5, height = 2.5)
 ```
 
@@ -118,7 +118,7 @@ first_line_plot$plot <- first_line_plot$plot +
 combined_first_line <- first_line_plot$plot / first_line_plot$table + 
   plot_layout(heights = c(4, 1))
 
-ggsave("../figures/PPI_first_line_KM.svg", plot = combined_first_line, device = "svg", width = 3.5, height = 2.5)
+ggsave("../figures/Figure1E.svg", plot = combined_first_line, device = "svg", width = 3.5, height = 2.5)
 ```
 
 # PPI use and OS in second and beyond
@@ -167,7 +167,7 @@ second_line_plot$plot <- second_line_plot$plot +
 combined_second_line <- second_line_plot$plot / second_line_plot$table + 
   plot_layout(heights = c(4, 1))
 
-ggsave("../figures/PPI_second_line_KM.svg", plot = combined_second_line, device = "svg", width = 3.5, height = 2.5)
+ggsave("../figures/Figure1F.svg", plot = combined_second_line, device = "svg", width = 3.5, height = 2.5)
 ```
 
 # PPI use and OS without prior chemotherapy
@@ -215,7 +215,7 @@ no_chemo_plot$plot <- no_chemo_plot$plot +
 
 combined_no_chemo <- no_chemo_plot$plot / no_chemo_plot$table + 
   plot_layout(heights = c(4, 1))
-ggsave("../figures/PPI_no_chemo_KM.svg", plot = combined_no_chemo, device = "svg", width = 3.5, height = 2.5)
+ggsave("../figures/Figure2A.svg", plot = combined_no_chemo, device = "svg", width = 3.5, height = 2.5)
 ```
 
 # PPI use and OS with prior chemotherapy
@@ -264,7 +264,7 @@ chemo_plot$plot <- chemo_plot$plot +
 combined_chemo <- chemo_plot$plot / chemo_plot$table + 
   plot_layout(heights = c(4, 1))
 
-ggsave("../figures/PPI_chemo_KM.svg", plot = combined_chemo, device = "svg", width = 3.5, height = 2.5)
+ggsave("../figures/Figure2B.svg", plot = combined_chemo, device = "svg", width = 3.5, height = 2.5)
 ```
 
 # PPI use and OS if patient recieved chemo more than 1 year
@@ -314,7 +314,7 @@ more_than_one_year_plot$plot <- more_than_one_year_plot$plot +
 combined_more_than_one_year <- more_than_one_year_plot$plot / more_than_one_year_plot$table + 
   plot_layout(heights = c(4, 1))
 
-ggsave("../figures/PPI_more_than_one_year_KM.svg", plot = combined_more_than_one_year, device = "svg", width = 3.5, height = 2.5)
+ggsave("../figures/Figure2C.svg", plot = combined_more_than_one_year, device = "svg", width = 3.5, height = 2.5)
 ```
 
 # PPI use and OS if patient recieved chemo less than 1 year
@@ -363,7 +363,7 @@ less_than_one_year_plot$plot <- less_than_one_year_plot$plot +
 combined_less_than_one_year <- less_than_one_year_plot$plot / less_than_one_year_plot$table + 
   plot_layout(heights = c(4, 1))
 
-ggsave("../figures/PPI_less_than_one_year.svg", plot = combined_less_than_one_year, device = "svg", width = 3.5, height = 2.5)
+ggsave("../figures/Figure3D", plot = combined_less_than_one_year, device = "svg", width = 3.5, height = 2.5)
 ```
 
 

@@ -19,8 +19,8 @@ library(grid)
 
 # load data
 ```{r}
-micro <- read.csv("../../data/iobio/2023-12-07_mpa-aggregate.csv")
-cytof <- readRDS("../../data/iobio/cytof_normalized.RDS")
+micro <- read.csv("../data/Cohort_3/2023-12-07_mpa-aggregate.csv")
+cytof <- readRDS("../data/Cohort_3/cytof_normalized.RDS")
 ```
 
 # micro data to species level
@@ -100,7 +100,7 @@ ggplot(merged, aes(x=`TE CD4` , y=RelAbun._Enterocloster_clostridioformis)) +
   geom_point() + stat_smooth(method = "lm", aes(group =1)) + 
   labs(x = "TE CD4 Count", y = "Relative Abundance of\nEnterocloster clostridioformis") +
   theme_minimal(base_size = 8)
-  ggsave("../../figures/2025/correlation.svg", device = "svg", height = 1.75, width = 5)
+  ggsave("../figures/Figure4D.svg", device = "svg", height = 1.75, width = 5)
 ```
 
 
@@ -143,31 +143,8 @@ phyl.ra <- phyl.ra[!(phyl.ra$sample %in% samples_to_remove),]
 
 
 colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2", "cornflowerblue", "deeppink4", "#999933") 
-
-phyl.ra %>%
-  ggplot(aes(x = `Patient ID`, y = RelAbun, fill = Phylum)) +  
-  geom_bar(position = "fill", stat = "identity", width = .4) +
-  scale_fill_manual(values = colors) + 
-  labs(x = "Patient ID", y = "") + 
-  theme_minimal(base_size = 9) +
-  theme(
-    axis.text.x = element_blank(), 
-    axis.ticks.x = element_blank(),
-    axis.ticks.y = element_blank(),
-    axis.text.y = element_blank(),
-    panel.grid.major = element_blank(),
-    legend.position = "right",
-    legend.box = "horizontal",
-    legend.title = element_blank()) +
-  guides(fill = guide_legend(ncol = 1, nrow = 7, byrow = TRUE)) + 
-  facet_grid(~PPI, scales = "free_x", space = "free", switch = "x") 
-
-
-
-
-
-ggsave("../../figures/2025/iobio/stackedbar.svg", device= "svg", height = 2.1, width = 2.64, scale = 2)
 ```
+
 ```{r}
 phyl.ra %>%
   ggplot(aes(y = `Patient ID`, x = RelAbun, fill = Phylum)) +  
@@ -196,7 +173,7 @@ phyl.ra %>%
   guides(fill = guide_legend(ncol = 4, byrow = TRUE)) + 
   facet_grid(PPI ~ ., scales = "free_y", space = "free_y")
 
-ggsave("../../figures/2025/stackedbar_separated.svg", 
+ggsave("../figures/Figure4B.svg", 
        device = "svg", height = 3, width = 3.25)
 ```
 
@@ -225,7 +202,7 @@ empty_names <- rep("", ncol(ordered_immune_matrix))
 # This trick forces pheatmap to treat it as a label and reserve space
 empty_names[round(length(empty_names)/2)] <- "Patient Samples"
 
-svg("../../figures/2025/IC_Abundance.svg", width = 4.25, height = 5.75)
+svg("../figures/Figure4C.svg", width = 4.25, height = 5.75)
 
 pheatmap(ordered_immune_matrix,
          cluster_rows = FALSE,
@@ -241,52 +218,6 @@ pheatmap(ordered_immune_matrix,
 
 dev.off()
      
-```
-
-
-
-
-
-```{r}
-immune <- cytof %>%
-  tibble::rownames_to_column(var = "sample")
-ppis <- c("N","N","Y","N","N","Y", "Y", "N")
-immune$PPI <- ppis
-
-immune <- immune %>%
- pivot_longer(
-   cols = where(is.numeric), 
-    names_to = "immune_cell",
-    values_to = "abundance"
-  )
-
-immune_comp  <- immune %>%
- group_by(sample) %>%
- mutate(relative_abundance = abundance / sum(abundance)) %>%
- ungroup()
-
-# Assuming df_long is your long-format dataframe:
-ggplot(immune_comp, aes(x = sample, y = relative_abundance, fill = immune_cell)) +
-  geom_bar(stat = "identity") +
-  labs(
-    title = "Immune Cell Composition by Sample",
-    x = "PPI Use",
-    y = "Abundance",
-    fill = "Immune Cell Type"
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
- theme(axis.text.x = element_blank(),  # Rotate x-axis labels if needed
-    axis.ticks.x = element_blank(),
-    axis.text.y = element_blank(),
-    panel.grid.major = element_blank(),
-    legend.key.size = unit(0.35, "cm"),        # smaller boxes
-    legend.text = element_text(size = 8),     # smaller labels
-    legend.title = element_text(size = 9)     # smaller title
-  )+
-  guides(fill = guide_legend(ncol = 2, byrow = TRUE)) +
-  facet_grid(~PPI, scales = "free_x", space = "free", switch = "x") 
-ggsave("../../figures/2025/iobio/immune_stackedbar.png", height = 3, width = 8)
 ```
 
 

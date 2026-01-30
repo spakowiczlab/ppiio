@@ -67,7 +67,7 @@ ppi_fp <- ggplot(ppi_only, aes(x = estimate, y = model)) +
     panel.grid.minor = element_blank()
   )
 
-ggsave("../figures/PPI_forest_plot.svg", plot = ppi_fp, device = "svg", width = 6, height = 3)
+ggsave("../figures/Figure2F.svg", plot = ppi_fp, device = "svg", width = 6, height = 3)
 ```
 
 
@@ -122,7 +122,7 @@ h2b_fp <- ggplot(h2b_only, aes(x = estimate, y = model)) +
 
 h2b_fp
 
-ggsave("../figures/H2B_forest_plot.svg", plot = h2b_fp, device = "svg", width = 6, height = 3)
+ggsave("../figures/Figure2G.svg", plot = h2b_fp, device = "svg", width = 6, height = 3)
 ```
 
 

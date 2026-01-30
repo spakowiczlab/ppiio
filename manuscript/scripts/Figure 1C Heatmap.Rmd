@@ -226,7 +226,7 @@ scale_y_discrete(
 )
 heat.plot
 
-ggsave("../figures/AllMeds_Heatmap.svg", device = "svg", width = 3, height = 3.75)
+ggsave("../figures/Figure1C.svg", device = "svg", width = 3, height = 3.75)
 
 ```
 

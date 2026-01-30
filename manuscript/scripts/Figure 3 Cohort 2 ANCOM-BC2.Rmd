@@ -1,0 +1,134 @@
+---
+title: "Mitox ANCOM-BC2"
+author: "Anna Petouhoff"
+date: "2025-03-17"
+output: html_document
+---
+
+```{r}
+library(ANCOMBC)
+library(phyloseq)
+library(tidyverse)
+library(readxl)
+```
+
+```{r}
+load("../data/Cohort_2/counts-long.rds")
+load("../data/Cohort_2/mitox_microbiome_metadata.rds")
+load("../data/Cohort_2/clinical.rds")
+```
+# Prepare data 
+```{r}
+baseline <- mic.meta %>%
+  group_by(`Patient Id`) %>%
+  arrange(Days) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  filter(abs(Days) <= 10)
+
+clin <- left_join(baseline, demographics, by = "Patient Id") %>%
+  dplyr::filter(sample %in% counts.l$sample) %>%
+  mutate(PPI = if_else(is.na(PPI), 'No', as.character(PPI)))
+
+met <- clin %>%
+    dplyr::select(sample, PPI) %>%
+    dplyr::filter(sample %in% counts.l$sample) 
+
+# filter to species level, removing the strain level 
+
+counts <- counts.l %>%
+  dplyr::filter(sample %in% met$sample,
+          grepl("s__", Taxonomy),
+          !grepl("t__", Taxonomy)) %>%
+  pivot_wider(names_from = "sample", values_from = "est.reads", values_fill = 0) %>%
+  column_to_rownames("Taxonomy")
+
+met <- met %>%
+  arrange(factor(sample, levels = colnames(counts))) %>%
+  column_to_rownames("sample")
+
+#check
+all.equal(rownames(met), colnames(counts))
+all.equal(rownames(met), colnames(counts))
+```
+
+```{r}
+metaphlanToPhyloseq <- function(tax, metadat, simplenames=TRUE, 
+                                roundtointeger=FALSE, split="|"){
+  
+    xnames = rownames(tax)
+    shortnames = gsub(paste0(".+\\", split), "", xnames)
+    
+    if(simplenames){
+        rownames(tax) = substr(shortnames, 4, nchar(shortnames))
+    }
+    
+    tax <- as.matrix(tax)
+    if(roundtointeger){
+        tax = round(tax * 1e4)
+    }
+    
+    x2 = strsplit(xnames, split=split, fixed=TRUE)
+    taxmat = matrix(NA, ncol=max(sapply(x2, length)), nrow=length(x2))
+    colnames(taxmat) = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species", "Strain")[1:ncol(taxmat)]
+    rownames(taxmat) = rownames(tax)
+    
+    for (i in 1:nrow(taxmat)){
+        taxmat[i, 1:length(x2[[i]])] <- x2[[i]]
+    }
+    
+    taxmat = gsub("[a-z]__", "", taxmat)
+    taxmat = phyloseq::tax_table(taxmat)
+    otutab = phyloseq::otu_table(tax, taxa_are_rows=TRUE)
+    
+    if(is.null(metadat)){
+        res = phyloseq::phyloseq(taxmat, otutab)
+    }else{
+        res = phyloseq::phyloseq(taxmat, otutab, phyloseq::sample_data(metadat))
+    }
+    
+    return(res)
+}
+
+phylo <- metaphlanToPhyloseq(counts, met)
+phylo
+```
+# Run ANCOM
+```{r}
+run_ancombc2 <- function(level, grp) {
+  # try with phyloseq object
+  out <- ANCOMBC::ancombc2(data = phylo, 
+                         tax_level = level, 
+                         fix_formula = grp, 
+                         group = grp, 
+                         struc_zero = TRUE, 
+                         s0_perc = 0,
+                         prv_cut = 0,
+                         p_adj_method = "BH")
+
+  res <- out$res
+  struct0 <- out$zero_ind
+  feature_tab <- out$feature_table
+  
+  return(list(res = res, struct0 = struct0, feature_tab = feature_tab))
+}
+```
+
+```{r}
+tax_levels <- c("Species", "Genus", "Family", "Order", "Class", "Phylum", "Kingdom")
+res_list <- lapply(tax_levels, function(level) run_ancombc2(level, "PPI"))
+res.recist <- do.call(rbind, lapply(res_list, function(x) x$res))
+struct0.recist <- do.call(rbind, lapply(res_list, function(x) x[[2]]))
+feature.recist <- do.call(rbind, lapply(res_list, function(x) x[[3]]))
+```
+
+```{r}
+save(res.recist, struct0.recist, feature.recist, file = "../data/Cohort_2/ANCOM-BC2_response_baseline.RData")
+```
+
+# check for duplicates - duplicates are all 'unclassififed' taxa
+```{r}
+duplicates <- duplicated(res.recist$taxon)
+res.recist[duplicates | duplicated(res.recist$taxon, fromLast = TRUE), ]
+```
+

@@ -172,7 +172,7 @@ ggplot(data = allpvaltime, aes(x = leftanchor, y = hazard.ratio)) +
 
 # Save Plot
 ```{r}
-ggsave("../figures/PPI_H2B_Timing.svg", device = "svg", width = 6, height = 2)
+ggsave("../figures/Figure2E.svg", device = "svg", width = 6, height = 2)
 ```
 ```
 
