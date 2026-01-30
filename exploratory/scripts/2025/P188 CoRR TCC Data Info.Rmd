@@ -1,0 +1,23 @@
+---
+title: "P188 CoRR TCC Data Info"
+author: "Anna Petouhoff"
+date: "2026-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/CoRR4684/2025-02-17/CoRR4684ARetrospecti_DATA_2025-02-17_2009.csv") %>%
+  select("record_id")
+P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/P188/2025-02-17/P188NSCLCIOTox111611_DATA_2025-02-17_1010.csv") %>%
+  select("record_id")
+
+df <- full_join(CoRR, P188, by="record_id")
+
+write.csv(df,"T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/TCC_Data_MRNs.csv" )
+```
+
+
+
+
+
