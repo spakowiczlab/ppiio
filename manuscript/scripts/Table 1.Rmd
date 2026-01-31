@@ -1,0 +1,108 @@
+---
+title: "table one"
+author: "Anna Petouhoff"
+date: "2025-02-14"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(tableone)
+library(forcats)
+library(glue)
+library(eeptools)
+library(readxl)
+```
+
+# load data
+```{r}
+CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")%>%
+  select(ecog, staging, age, follow_up, sex, line_of_therapy, prior_chemo, ppi, vitalstatus, Cancer, Immunotherapy, bmi)
+load("../data/Cohort_2/clinical.rds")
+load("../data/Cohort_2/mitox_microbiome_metadata.rds")
+iobio <- read_excel("T:/Labs/Spakowicz/Iobio/data/PPI_Microbiome data set 01232025_deID.xlsx")
+```
+
+
+
+```{r}
+# Select and adjust dataframe for Table 1
+CoRR_df <- 
+  CoRR %>%
+  mutate(`ECOG PS` = fct_relevel(ifelse(ecog > 2, ">2", ecog), "0","1","2",">2"),
+         Staging  = ifelse(staging == 5, "Unknown", staging),
+         BMI = bmi,
+         Age = age,
+         follow_up_time=follow_up,
+         Sex = sex,
+         Therapy = ifelse(line_of_therapy == 1,"1",">1"),
+         Chemo_prior = prior_chemo)
+```
+
+
+# Table 1 for CoRR
+```{r}
+listVars <- c("Age", "Sex", "vitalstatus","ECOG PS", "Cancer", "Staging", "Immunotherapy","Chemo_prior", "follow_up_time")
+catVars <- c("Sex", "Cancer", "vitalstatus","Immunotherapy", "ECOG PS","Chemo_prior", "Staging")
+table1 <- CreateTableOne(vars = listVars,
+                         data = CoRR_df,
+                         factorVars = catVars,
+                         strata = c("ppi"))
+tbl1.ppi <- print(table1, nonnormal = "follow_up_time")
+write.csv(tbl1.ppi, "../tables/table1_cohort1.csv")
+```
+
+
+
+#Table 1 for Cohort 2 
+```{r}
+baseline <- mic.meta %>%
+  group_by(`Patient Id`) %>%
+  arrange(Days) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  filter(abs(Days) <= 10) 
+
+demo.filt <- demographics %>%
+  filter(`Patient Id` %in% baseline$`Patient Id`) %>%
+   mutate(PPI = if_else(is.na(PPI), 'No', as.character(PPI)))
+```
+
+```{r}
+listVars3 <- c("Age", "Sex", "Treatment","Stage")
+table3 <- CreateTableOne(vars = listVars3,
+                         data = demo.filt,
+                         strata = c("PPI"))
+tbl3 <- print(table3)
+write.csv(tbl3, "../tables/table_cohort2.csv")
+```
+
+# Table 1 for Cohort 3
+
+```{r}
+iobio <- iobio %>%
+  rename(Immunotherapy ="Type of immunotherapy",
+         ECOG = "ECOG at start date", 
+         Cancer = "What type of cancer does the patient have?",
+         VitalStatus = "What is the patient's vital status? 1-deceaased")
+iobio$Cancer <- as.factor(iobio$Cancer)
+```
+
+
+```{r}
+listVars4 <- c("Gender", "VitalStatus","ECOG", "Immunotherapy")
+catVars4 <- c("Gender", "VitalStatus","Immunotherapy", "ECOG")
+table4 <- CreateTableOne(vars = listVars4,
+                         data = iobio,
+                         factorVars = catVars4,
+                         strata = c("PPI Y/N"))
+tbl4 <- print(table4)
+
+
+write.csv(tbl4, "../tables/table_cohort3.csv")
+```
+
+
+

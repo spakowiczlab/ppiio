@@ -69,8 +69,7 @@ all_surv_plot$plot <- all_surv_plot$plot +
 combined_all_surv <- all_surv_plot$plot / all_surv_plot$table + 
   plot_layout(heights = c(4, 1))
 
-ggsave("../../figures/2025/H2B_all_cancers_KM.svg", 
-       plot = combined_all_surv, width = 3.5, height = 2)
+ggsave("../figures/Figure S3A.svg", plot = combined_all_surv, width = 3.5, height = 2)
 ```
 
 ```{r}
@@ -118,8 +117,9 @@ first_line_plot$plot <- first_line_plot$plot +
 combined_first_line <- first_line_plot$plot / first_line_plot$table + 
   plot_layout(heights = c(4, 1))
 
-ggsave("../../figures/2025/H2B_first_line_KM.svg", plot = combined_first_line, device = "svg", width = 3.5, height = 2)
+ggsave("../figures/Figure S3B.svg", plot = combined_first_line, device = "svg", width = 3.5, height = 2)
 ```
+
 ```{r}
 second_line <- survfit(Surv(days, vitalstatus) ~ h2b_iostart, data = df[df$line_of_therapy != 1,])
 
@@ -165,8 +165,9 @@ second_line_plot$plot <- second_line_plot$plot +
 combined_second_line <- second_line_plot$plot / second_line_plot$table + 
   plot_layout(heights = c(4, 1))
 
-ggsave("../../figures/2025/H2B_second_line_KM.svg", plot = combined_second_line, device = "svg", width = 3.5, height = 2)
+ggsave("../figures/Figure S3C.svg", plot = combined_second_line, device = "svg", width = 3.5, height = 2)
 ```
+
 ```{r}
 no_chemo <- survfit(Surv(days, vitalstatus) ~ h2b_iostart, data = df[df$prior_chemo == "no",])
 
@@ -211,8 +212,9 @@ no_chemo_plot$plot <- no_chemo_plot$plot +
 
 combined_no_chemo <- no_chemo_plot$plot / no_chemo_plot$table + 
   plot_layout(heights = c(4, 1))
-ggsave("../../figures/2025/H2B_no_chemo_KM.svg", plot = combined_no_chemo, device = "svg", width = 3.5, height = 2)
+ggsave("../figures/Figure S3D.svg", plot = combined_no_chemo, device = "svg", width = 3.5, height = 2)
 ```
+
 ```{r}
 chemo <- survfit(Surv(days, vitalstatus) ~ h2b_iostart, data = df[df$prior_chemo == "yes",])
 
@@ -258,7 +260,7 @@ chemo_plot$plot <- chemo_plot$plot +
 combined_chemo <- chemo_plot$plot / chemo_plot$table + 
   plot_layout(heights = c(4, 1))
 
-ggsave("../../figures/2025/H2B_chemo_KM.svg", plot = combined_chemo, device = "svg", width = 3.5, height = 2)
+ggsave("../figures/Figure S3E.svg", plot = combined_chemo, device = "svg", width = 3.5, height = 2)
 ```
 
 
@@ -307,8 +309,9 @@ more_than_one_year_plot$plot <- more_than_one_year_plot$plot +
 combined_more_than_one_year <- more_than_one_year_plot$plot / more_than_one_year_plot$table + 
   plot_layout(heights = c(4, 1))
 
-ggsave("../../figures/2025/H2B_more_than_one_year_KM.svg", plot = combined_more_than_one_year, device = "svg", width = 3.5, height = 2)
+ggsave("../figures/Figure S3F.svg", plot = combined_more_than_one_year, device = "svg", width = 3.5, height = 2)
 ```
+
 ```{r}
 less_than_one_year <- survfit(Surv(days, vitalstatus) ~ h2b_iostart, data = df[df$chemo_greater_one_year == 0,])
 
@@ -354,6 +357,6 @@ less_than_one_year_plot$plot <- less_than_one_year_plot$plot +
 combined_less_than_one_year <- less_than_one_year_plot$plot / less_than_one_year_plot$table + 
   plot_layout(heights = c(4, 1))
 
-ggsave("../../figures/2025/H2B_less_than_one_year.svg", plot = combined_less_than_one_year, device = "svg", width = 3.5, height = 2)
+ggsave("../figures/Figure S3G.svg", plot = combined_less_than_one_year, device = "svg", width = 3.5, height = 2)
 ```
 
