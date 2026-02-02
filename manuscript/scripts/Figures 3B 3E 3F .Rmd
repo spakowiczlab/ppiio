@@ -159,12 +159,11 @@ colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2", "deeppink4")
 
 
 ```{r}
-target_point <- "Enterocloster clostridioformis"
+
 res_to_plot <- res.recist %>%
   filter(q_PPIYes < 1) %>%
   arrange(q_PPIYes) %>%
-  mutate(display_label = case_when( label == target_point ~ as.character(label),       
-                                    row_number() <= 15    ~ as.character(label),       
+  mutate(display_label = case_when( row_number() <= 21    ~ as.character(label),       
                                     TRUE                  ~ ""))
 y_max_val <- max(-log10(res_to_plot$q_PPIYes), na.rm = TRUE)
 y_limit_plot <- y_max_val + 1.5 
