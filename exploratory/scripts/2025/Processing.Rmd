@@ -13,7 +13,7 @@ library(readxl)
 library(targets)
 ```
 
-# read in csv
+# read the raw REDCap downloads (which contain PHI)
 ```{r}
 CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/CoRR4684/2025-02-17/CoRR4684ARetrospecti_DATA_2025-02-17_2009.csv")
 P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/P188/2025-02-17/P188NSCLCIOTox111611_DATA_2025-02-17_1010.csv")
@@ -381,6 +381,21 @@ DO.combined = combine_DO_dbs(ppi_corr, ppi_P188)
 ```{r}
 common_rows <- intersect(ppi_corr$MRN, ppi_P188$MRN)
 ppi_corr <- ppi_corr[!ppi_corr$MRN %in% common_rows, ]
+```
+
+# Select only those columns needed to replicate the analyses in the manuscript (removing all PHI)
+```{r}
+ppi_corr <- ppi_corr %>%
+  select()
+
+ppi_P188 <- ppi_P188 %>%
+  select()
+
+DO.combined <- DO.combined %>%
+  select()
+
+ppi_P188_34 <- ppi_P188_34 %>%
+  select()
 ```
 
 # Write as CSV
