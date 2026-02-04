@@ -276,10 +276,14 @@ box.in %>%
     axis.text.y = element_text(face = "italic"), 
     strip.text = element_text(size = 10),
     legend.position = "none",
-    plot.margin = margin(t = 5, r = 10, b = 5, l = 5)
+    plot.margin = margin(t = 5, r = 10, b = 5, l = 5),
+    plot.title = element_text(hjust = 0.5)
   ) +
-  xlab("") +
-  ylab("log(est. reads)")
+  labs(
+    title = "Taxa Found Only in the `No PPI Use` Group",
+    x = "",
+    y = "log(est. reads)"
+  )
 
 ggsave("../figures/Figure3F.svg", device = "svg", height = 2, width = 6.5)
 ```

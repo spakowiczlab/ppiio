@@ -38,7 +38,8 @@ CoRR_df <-
          follow_up_time=follow_up,
          Sex = sex,
          Therapy = ifelse(line_of_therapy == 1,"1",">1"),
-         Chemo_prior = prior_chemo)
+         Chemo_prior = prior_chemo,
+         Immunotherapy = fct_relevel(Immunotherapy, "CTLA4", "PD1/L1", "PD1/L1 + CTLA4", "Other" ))
 ```
 
 

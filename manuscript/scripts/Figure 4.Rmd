@@ -97,8 +97,12 @@ corr.results <- lapply(colnames(interest), function(x)
 #Plotting significant correlation
 ```{r}
 ggplot(merged, aes(x=`TE CD4` , y=RelAbun._Enterocloster_clostridioformis)) +
-  geom_point() + stat_smooth(method = "lm", aes(group =1)) + 
-  labs(x = "TE CD4 Count", y = "Relative Abundance of\nEnterocloster clostridioformis") +
+  geom_point() + 
+  stat_smooth(method = "lm", aes(group = 1)) + 
+  labs(
+    x = "TE CD4 Count", 
+    y = expression(atop("Relative Abundance of", italic("Enterocloster clostridioformis")))
+  ) +
   theme_minimal(base_size = 8)
   ggsave("../figures/Figure4D.svg", device = "svg", height = 1.75, width = 5)
 ```
@@ -157,15 +161,12 @@ phyl.ra %>%
     axis.text.y = element_blank(), 
     axis.ticks.y = element_blank(),
     panel.grid = element_blank(),
-    # Legend Position
     legend.position = "bottom",
     legend.direction = "horizontal",
     legend.title = element_blank(),
-    # --- SHRINKING THE LEGEND ---
-    legend.text = element_text(size = 6),        # Smaller font size
-    legend.key.size = unit(0.3, "cm"),           # Smaller color boxes
-    legend.spacing.x = unit(0.1, "cm"),          # Tighten space between box and text
-    # ----------------------------
+    legend.text = element_text(size = 6),        
+    legend.key.size = unit(0.3, "cm"),           
+    legend.spacing.x = unit(0.1, "cm"),         
     strip.text.y = element_text(angle = 0, face = "bold"),
     strip.background = element_rect(fill = "gray95", color = NA),
     plot.margin = margin(t = 5, r = 10, b = 5, l = 5)

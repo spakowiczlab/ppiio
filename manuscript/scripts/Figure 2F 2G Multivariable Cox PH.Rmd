@@ -56,7 +56,7 @@ ppi_fp <- ggplot(ppi_only, aes(x = estimate, y = model)) +
   scale_x_log10(expand = expansion(mult = c(0.1, 0.6))) + 
   labs(x = "Hazard Ratio (Log Scale)", 
        y = "",
-       title = "PPI Impact on Survival Across Models") +
+       title = "PPI Impact on Survival Across Bivariate Models") +
   theme_minimal() +
   theme(
     axis.title.x = element_text(size = 12, margin = margin(t = 10)),
@@ -109,13 +109,13 @@ h2b_fp <- ggplot(h2b_only, aes(x = estimate, y = model)) +
   scale_x_log10(expand = expansion(mult = c(0.1, 0.4))) + 
   labs(x = "Hazard Ratio (Log Scale)", 
        y = "",
-       title = "H2B Impact on Survival Across Models") +
+       title = "H2B Impact on Survival Across Bivariate Models") +
   theme_minimal()+
   theme(
     axis.title.x = element_text(size = 12, margin = margin(t = 10)),
     axis.text.x = element_text(size = 11),
     axis.text.y = element_text(size =11, color = "black"),
-    plot.title = element_text(size = 13, face = "bold", hjust = 0.5),
+    plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),
     panel.grid.minor = element_blank()
   )

@@ -30,7 +30,7 @@ all_surv_plot <- ggsurvplot(
     all_surv, 
     pval = TRUE, 
     risk.table = TRUE,
-    title = "OS: All Cancers",
+    title = "OS For All Cancers",
     legend.title = "",
     ylab = "Survival Probability",
     xlab = "Time (days)",
