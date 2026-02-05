@@ -17,7 +17,7 @@ library(broom)
 
 ```{r}
 CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") %>%
-  select("ppi", "abx_iostart", "staging", "cci_number", "days", "vitalstatus", "chemo_greater_one_year", "h2b_iostart")
+  select("ppi", "abx_iostart", "staging", "cci_number", "days", "vitalstatus", "h2b_iostart")
 ```
 
 ```{r}
@@ -66,7 +66,7 @@ ppi_fp <- ggplot(ppi_only, aes(x = estimate, y = model)) +
     plot.margin  = margin(t = 10, r = 20, b = 10, l = 10), # Extra right margin
     panel.grid.minor = element_blank()
   )
-
+ppi_fp
 ggsave("../figures/Figure2F.svg", plot = ppi_fp, device = "svg", width = 6, height = 3)
 ```
 
