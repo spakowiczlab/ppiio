@@ -1,6 +1,8 @@
+<img src="ppiio-hex-sticker.png" align="right" alt="ppiio hex sticker" width="160">
+
 <h1>
 ppiio
-<a href="https://doi.org/10.5281/zenodo.22827709"><img src="https://zenodo.org/badge/291731822.svg" alt="DOI" align="right"></a>
+<a href="https://doi.org/10.5281/zenodo.22827709"><img src="https://zenodo.org/badge/291731822.svg" alt="DOI"></a>
 </h1>
 
 Code and processed data for:
@@ -19,6 +21,7 @@ ppiio/
 │   ├── tables/          # Table 1 / S2 / S3 CSV outputs
 │   └── data/            # Processed objects shipped with the repo (Cohorts 1–3)
 ├── exploratory/         # Earlier drafts and unused analyses; not the publication pipeline
+├── ppiio-hex-sticker.png
 ├── LICENSE
 └── ppiio.Rproj
 ```
