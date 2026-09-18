@@ -1,12 +1,14 @@
-<img src="assets/ppiio-hex-sticker.png" align="right" alt="ppiio hex sticker" width="160">
-
 # ppiio [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22827709-blue)](https://doi.org/10.5281/zenodo.22827709)
+
+<img src="assets/ppiio-hex-sticker.png" align="right" alt="ppiio hex sticker" width="160">
 
 Code and processed data for:
 
 > Petouhoff, A., Hicks, R., Husain, M. et al. Impact of proton pump inhibitors on immunotherapy is modulated by prior chemotherapy and linked to gut microbiome–immune cell signatures. *Cancer Immunology, Immunotherapy* 75, 98 (2026). https://doi.org/10.1007/s00262-026-04346-7
 
 The paper evaluates whether proton pump inhibitor (PPI) use is associated with overall survival in patients treated with immune checkpoint inhibitors (Cohort 1), and whether PPI use relates to gut microbiome composition (Cohort 2, melanoma) and circulating immune cells (Cohort 3, NSCLC/RCC).
+
+<br clear="all">
 
 ![Graphical abstract](assets/graphical-abstract.jpeg)
 
