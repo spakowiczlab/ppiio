@@ -1,15 +1,14 @@
-<img src="ppiio-hex-sticker.png" align="right" alt="ppiio hex sticker" width="160">
+<img src="assets/ppiio-hex-sticker.png" align="right" alt="ppiio hex sticker" width="160">
 
-<h1>
-ppiio
-<a href="https://doi.org/10.5281/zenodo.22827709"><img src="https://zenodo.org/badge/291731822.svg" alt="DOI"></a>
-</h1>
+# ppiio [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.22827709-blue)](https://doi.org/10.5281/zenodo.22827709)
 
 Code and processed data for:
 
 > Petouhoff, A., Hicks, R., Husain, M. et al. Impact of proton pump inhibitors on immunotherapy is modulated by prior chemotherapy and linked to gut microbiome–immune cell signatures. *Cancer Immunology, Immunotherapy* 75, 98 (2026). https://doi.org/10.1007/s00262-026-04346-7
 
 The paper evaluates whether proton pump inhibitor (PPI) use is associated with overall survival in patients treated with immune checkpoint inhibitors (Cohort 1), and whether PPI use relates to gut microbiome composition (Cohort 2, melanoma) and circulating immune cells (Cohort 3, NSCLC/RCC).
+
+![Graphical abstract](assets/graphical-abstract.jpeg)
 
 ## Repository structure
 
@@ -21,7 +20,7 @@ ppiio/
 │   ├── tables/          # Table 1 / S2 / S3 CSV outputs
 │   └── data/            # Processed objects shipped with the repo (Cohorts 1–3)
 ├── exploratory/         # Earlier drafts and unused analyses; not the publication pipeline
-├── ppiio-hex-sticker.png
+├── assets/              # README images (hex sticker, graphical abstract)
 ├── LICENSE
 └── ppiio.Rproj
 ```
