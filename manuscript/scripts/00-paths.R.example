@@ -1,6 +1,6 @@
 # Local lab-share paths for notebooks that read raw/PHI extracts.
 #
-# Copy this file to 00-paths.R in the same directory and fill in the two
+# Copy this file to 00-paths.R in the same directory and fill in the
 # variables below. 00-paths.R is gitignored and must not be committed.
 #
 # Tdrive:
@@ -12,6 +12,11 @@
 # Iobio_clinical:
 #   Path to the de-identified Cohort 3 clinical spreadsheet used only for
 #   Table S3 in Table 1.Rmd.
+#
+# Iobio_sample_map:
+#   CSV with columns sequencer,sample mapping FASTQ filename stems to study
+#   IDs (P026_d0, …). Keep this on the share, not in git.
 
 Tdrive <- "T:/REPLACE/WITH/ppiio/PROJECT/FOLDER"
 Iobio_clinical <- "T:/REPLACE/WITH/Iobio/deidentified-clinical.xlsx"
+Iobio_sample_map <- "T:/REPLACE/WITH/ppiio/iobio-sample-key.csv"

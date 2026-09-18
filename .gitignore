@@ -45,7 +45,7 @@ ppiio.json
 # to 00-paths.R and set Tdrive; do not commit the real path.
 00-paths.R
 
-# Knitted HTML from Processing.Rmd can include intermediate objects; do not commit.
-manuscript/scripts/*.html
+# Sequencer filename <-> study ID key (dated FASTQ stems). Keep on the share.
+iobio-sample-key.csv
 
 .DS_Store

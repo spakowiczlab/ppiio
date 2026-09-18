@@ -1,0 +1,83 @@
+---
+title: "Check FASTQ checksums (Cohort 3 / Iobio)"
+author: "Dan Spakowicz"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Verifies that the 14 paired FASTQ libraries copied to the lab share match the
+sequencing-core md5 manifest. The OSC archive of the same files is
+`/fs/ess/PAS1695/archive/projects/iobio/` (see
+`processing_prepare-humann3-batches.R`).
+
+Sequencer filenames include collection dates. Map them with
+`Iobio_sample_map` from `00-paths.R` (CSV on the share, not in git). The RDS
+written below stores **study IDs** (`P026_d0_R1.fastq.gz`, …) and checksums
+only — not share paths.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tools)
+library(magrittr)
+library(dplyr)
+
+this_dir <- if (!is.null(knitr::current_input())) {
+  dirname(normalizePath(knitr::current_input()))
+} else {
+  getwd()
+}
+paths_file <- file.path(this_dir, "..", "..", "manuscript", "scripts", "00-paths.R")
+if (!file.exists(paths_file)) {
+  stop("Missing manuscript/scripts/00-paths.R (needed for Tdrive / Iobio_sample_map).")
+}
+source(paths_file)
+```
+
+```{r}
+files <- list.files(path = "T:/Labs/Spakowicz/Iobio/data/raw/fastqs/")
+
+files
+```
+
+```{r}
+key_candidates <- c(
+  if (exists("Iobio_sample_map")) Iobio_sample_map,
+  if (exists("Tdrive")) file.path(Tdrive, "iobio-sample-key.csv")
+)
+key_file <- key_candidates[!is.na(key_candidates) & file.exists(key_candidates)][1]
+if (is.na(key_file)) {
+  stop("Missing iobio-sample-key.csv. Keep it on the lab share; do not commit it.")
+}
+sample_map <- read.csv(key_file, stringsAsFactors = FALSE)
+
+files.full <- list.files(path = "T:/Labs/Spakowicz/Iobio/data/raw/fastqs/",
+                         full.names = TRUE)
+
+x <- read.table(files.full[grep("md5", files.full)]) %>%
+  rename("md5sum" = "V1",
+         "file" = "V2") %>%
+  mutate(new.loc = files.full[grep("gz", files.full)])
+
+# Calculate md5sums (takes a long time)
+new.sum <-
+  x %>%
+  mutate(new.loc.md5 = md5sum(new.loc))
+
+checked <-
+  new.sum %>%
+  mutate(TransferredCorrectly = md5sum == new.loc.md5) %>%
+  mutate(
+    sequencer = sub("_R([12])_001\\.fastq\\.gz$", "", basename(file)),
+    read = sub(".*_R([12])_001\\.fastq\\.gz$", "R\\1", basename(file))
+  ) %>%
+  left_join(sample_map, by = "sequencer") %>%
+  transmute(
+    file = paste0(sample, "_", read, ".fastq.gz"),
+    md5sum,
+    copy_md5 = new.loc.md5,
+    TransferredCorrectly
+  )
+
+saveRDS(checked, file = "../data/md5sums-ck.RDS")
+```

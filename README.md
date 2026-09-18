@@ -19,6 +19,7 @@ ppiio/
 │   ├── figures/         # SVG outputs written by the scripts below
 │   ├── tables/          # Table 1 / S2 / S3 CSV outputs
 │   └── data/            # Processed objects shipped with the repo (Cohorts 1–3)
+├── processing/          # Cohort 3 shotgun pipeline (OSC PAS1695 → MetaPhlAn / HUMAnN3)
 ├── exploratory/         # Earlier drafts and unused analyses; not the publication pipeline
 ├── assets/              # README images (hex sticker, graphical abstract)
 ├── LICENSE
@@ -31,6 +32,7 @@ Raw extracts stay on the lab share. The share root is **not** in git: copy `manu
 
 - `Tdrive` — `ppiio` project folder on the share (contains `data/raw/` and `data/curated/`). Used by `Processing.Rmd`.
 - `Iobio_clinical` — de-identified Cohort 3 clinical spreadsheet. Used only by Table S3 in `Table 1.Rmd`.
+- `Iobio_sample_map` — CSV mapping Cohort 3 sequencer filename stems to study IDs. Keep on the share, not in git.
 
 ## Figure and table map
 
@@ -90,6 +92,8 @@ Processed objects live in `manuscript/data/Cohort_3/`:
 | `2023-12-07_mpa-aggregate.csv` | MetaPhlAn relative abundances; sample IDs are study codes (`P026_d0`, …) with days relative to ICI start |
 | `cytof_normalized.RDS` | Normalized CyTOF abundances; `Patient ID` is `26 _ 0` (patient and day relative to ICI start) |
 | `clinical.csv` | PPI use (`Y`/`N`) for the eight patients in Figure 4 |
+
+Shotgun reads were processed on OSC (project **PAS1695**) with HUMAnN 3; MetaPhlAn tables come from that run. Scripts and aggregated outputs are in `processing/`. There are 14 libraries (8 baseline, 4 follow-up, 2 controls); Figure 4 uses the 8 baselines. Sample IDs in the committed CSVs are study codes, not sequencer filenames. The sequencer-to-study-ID key (`iobio-sample-key.csv`) stays on the lab share (`Tdrive`) and on OSC; it is not in git.
 
 Table S3 demographics are rebuilt in `Table 1.Rmd` from `Iobio_clinical` in `00-paths.R` (Gender, vital status, ECOG, immunotherapy class, and PPI only).
 
