@@ -1,4 +1,7 @@
-# ppiio
+<h1>
+ppiio
+<a href="https://doi.org/10.5281/zenodo.22827709"><img src="https://zenodo.org/badge/291731822.svg" alt="DOI" align="right"></a>
+</h1>
 
 Code and processed data for:
 
