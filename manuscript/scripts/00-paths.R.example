@@ -1,0 +1,17 @@
+# Local lab-share paths for notebooks that read raw/PHI extracts.
+#
+# Copy this file to 00-paths.R in the same directory and fill in the two
+# variables below. 00-paths.R is gitignored and must not be committed.
+#
+# Tdrive:
+#   The ppiio project folder on the lab share (the directory that contains
+#   data/raw/ and data/curated/). Used by Processing.Rmd.
+#   file.path(Tdrive, "data/raw/...")
+#   file.path(Tdrive, "data/curated/...")
+#
+# Iobio_clinical:
+#   Path to the de-identified Cohort 3 clinical spreadsheet used only for
+#   Table S3 in Table 1.Rmd.
+
+Tdrive <- "T:/REPLACE/WITH/ppiio/PROJECT/FOLDER"
+Iobio_clinical <- "T:/REPLACE/WITH/Iobio/deidentified-clinical.xlsx"

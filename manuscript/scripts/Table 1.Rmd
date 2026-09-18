@@ -1,109 +1,129 @@
 ---
-title: "table one"
+title: "Table 1 / Tables S2–S3 — cohort demographics"
 author: "Anna Petouhoff"
 date: "2025-02-14"
 output: html_document
 ---
 
-```{r}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Directory of this notebook (for 00-paths.R). Table S3 still reads a
+# de-identified spreadsheet from the lab share; Cohorts 1 and 2 do not.
+this_dir <- if (!is.null(knitr::current_input())) {
+  dirname(normalizePath(knitr::current_input()))
+} else if (file.exists("Table 1.Rmd")) {
+  getwd()
+} else if (file.exists("manuscript/scripts/Table 1.Rmd")) {
+  file.path(getwd(), "manuscript/scripts")
+} else {
+  getwd()
+}
+
+paths_file <- file.path(this_dir, "00-paths.R")
+if (file.exists(paths_file)) {
+  source(paths_file)
+}
+```
+
+Produces the demographic tables:
+
+- `../tables/table1_cohort1.csv` — **Table 1** (Cohort 1, all cancers)
+- `../tables/table_cohort2.csv` — **Table S2** (Cohort 2, melanoma)
+- `../tables/table_cohort3.csv` — **Table S3** (Cohort 3, NSCLC/RCC)
+
+Only clinical variables that appear in those tables are read. Cohort 1 comes
+from `../data/cohort1-cleaned-clinical.RDS` (written by `Processing.Rmd`).
+Cohort 2 comes from `../data/Cohort_2/clinical.rds`. Cohort 3 Table S3 uses
+the de-identified spreadsheet path `Iobio_clinical` from gitignored
+`00-paths.R`.
+
+```{r libraries}
 library(dplyr)
 library(tidyr)
 library(tidyverse)
 library(tableone)
 library(forcats)
-library(glue)
-library(eeptools)
 library(readxl)
 ```
 
-# load data
-```{r}
-CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")%>%
-  select(ecog, staging, age, follow_up, sex, line_of_therapy, prior_chemo, ppi, vitalstatus, Cancer, Immunotherapy, bmi)
+```{r load}
+# Table 1 variables only.
+CoRR <- readRDS("../data/cohort1-cleaned-clinical.RDS") %>%
+  select(ecog, staging, age, follow_up, sex, prior_chemo, ppi, vitalstatus, Cancer, Immunotherapy)
+
+# Table S2 variables only (already trimmed in clinical.rds).
 load("../data/Cohort_2/clinical.rds")
 load("../data/Cohort_2/mitox_microbiome_metadata.rds")
-iobio <- read_excel("T:/Labs/Spakowicz/Iobio/data/PPI_Microbiome data set 01232025_deID.xlsx")
+
+# Table S3: de-identified Cohort 3 clinical file (lab share path from 00-paths.R).
+if (!exists("Iobio_clinical") || !nzchar(Iobio_clinical) || !file.exists(Iobio_clinical)) {
+  stop("Table S3 needs Iobio_clinical in 00-paths.R. See 00-paths.R.example.")
+}
+iobio <- read_excel(Iobio_clinical)
 ```
 
+# Table 1 — Cohort 1
 
+```{r table1-cohort1}
+CoRR_df <- CoRR %>%
+  mutate(
+    `ECOG PS` = fct_relevel(ifelse(ecog > 2, ">2", ecog), "0", "1", "2", ">2"),
+    Staging = ifelse(staging == 5, "Unknown", staging),
+    Age = age,
+    follow_up_time = follow_up,
+    Sex = sex,
+    Chemo_prior = prior_chemo,
+    Immunotherapy = fct_relevel(Immunotherapy, "CTLA4", "PD1/L1", "PD1/L1 + CTLA4", "Other")
+  )
 
-```{r}
-# Select and adjust dataframe for Table 1
-CoRR_df <- 
-  CoRR %>%
-  mutate(`ECOG PS` = fct_relevel(ifelse(ecog > 2, ">2", ecog), "0","1","2",">2"),
-         Staging  = ifelse(staging == 5, "Unknown", staging),
-         BMI = bmi,
-         Age = age,
-         follow_up_time=follow_up,
-         Sex = sex,
-         Therapy = ifelse(line_of_therapy == 1,"1",">1"),
-         Chemo_prior = prior_chemo,
-         Immunotherapy = fct_relevel(Immunotherapy, "CTLA4", "PD1/L1", "PD1/L1 + CTLA4", "Other" ))
-```
-
-
-# Table 1 for CoRR
-```{r}
-listVars <- c("Age", "Sex", "vitalstatus","ECOG PS", "Cancer", "Staging", "Immunotherapy","Chemo_prior", "follow_up_time")
-catVars <- c("Sex", "Cancer", "vitalstatus","Immunotherapy", "ECOG PS","Chemo_prior", "Staging")
-table1 <- CreateTableOne(vars = listVars,
-                         data = CoRR_df,
-                         factorVars = catVars,
+listVars <- c("Age", "Sex", "vitalstatus", "ECOG PS", "Cancer", "Staging",
+              "Immunotherapy", "Chemo_prior", "follow_up_time")
+catVars <- c("Sex", "Cancer", "vitalstatus", "Immunotherapy", "ECOG PS",
+             "Chemo_prior", "Staging")
+table1 <- CreateTableOne(vars = listVars, data = CoRR_df, factorVars = catVars,
                          strata = c("ppi"))
 tbl1.ppi <- print(table1, nonnormal = "follow_up_time")
 write.csv(tbl1.ppi, "../tables/table1_cohort1.csv")
 ```
 
+# Table S2 — Cohort 2 (baseline microbiome samples within ±10 days of ICI start)
 
-
-#Table 1 for Cohort 2 
-```{r}
+```{r table-s2}
 baseline <- mic.meta %>%
   group_by(`Patient Id`) %>%
   arrange(Days) %>%
   slice_head(n = 1) %>%
   ungroup() %>%
-  filter(abs(Days) <= 10) 
+  filter(abs(Days) <= 10)
 
 demo.filt <- demographics %>%
+  select(`Patient Id`, Age, Sex, Treatment, Stage, PPI) %>%
   filter(`Patient Id` %in% baseline$`Patient Id`) %>%
-   mutate(PPI = if_else(is.na(PPI), 'No', as.character(PPI)))
+  mutate(PPI = if_else(is.na(PPI), "No", as.character(PPI)))
+
+listVars3 <- c("Age", "Sex", "Treatment", "Stage")
+table3 <- CreateTableOne(vars = listVars3, data = demo.filt, strata = c("PPI"))
+write.csv(print(table3), "../tables/table_cohort2.csv")
 ```
 
-```{r}
-listVars3 <- c("Age", "Sex", "Treatment","Stage")
-table3 <- CreateTableOne(vars = listVars3,
-                         data = demo.filt,
-                         strata = c("PPI"))
-tbl3 <- print(table3)
-write.csv(tbl3, "../tables/table_cohort2.csv")
-```
+# Table S3 — Cohort 3
 
-# Table 1 for Cohort 3
-
-```{r}
+```{r table-s3}
 iobio <- iobio %>%
-  rename(Immunotherapy ="Type of immunotherapy",
-         ECOG = "ECOG at start date", 
-         Cancer = "What type of cancer does the patient have?",
-         VitalStatus = "What is the patient's vital status? 1-deceaased")
-iobio$Cancer <- as.factor(iobio$Cancer)
+  rename(
+    Immunotherapy = "Type of immunotherapy",
+    ECOG = "ECOG at start date",
+    VitalStatus = "What is the patient's vital status? 1-deceaased",
+    PPI = "PPI Y/N"
+  ) %>%
+  select(Gender, VitalStatus, ECOG, Immunotherapy, PPI)
+
+iobio$Immunotherapy <- as.factor(iobio$Immunotherapy)
+
+listVars4 <- c("Gender", "VitalStatus", "ECOG", "Immunotherapy")
+catVars4 <- c("Gender", "VitalStatus", "Immunotherapy", "ECOG")
+table4 <- CreateTableOne(vars = listVars4, data = iobio, factorVars = catVars4,
+                         strata = c("PPI"))
+write.csv(print(table4), "../tables/table_cohort3.csv")
 ```
-
-
-```{r}
-listVars4 <- c("Gender", "VitalStatus","ECOG", "Immunotherapy")
-catVars4 <- c("Gender", "VitalStatus","Immunotherapy", "ECOG")
-table4 <- CreateTableOne(vars = listVars4,
-                         data = iobio,
-                         factorVars = catVars4,
-                         strata = c("PPI Y/N"))
-tbl4 <- print(table4)
-
-
-write.csv(tbl4, "../tables/table_cohort3.csv")
-```
-
-
-

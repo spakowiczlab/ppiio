@@ -9,7 +9,27 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 
-source("00-paths.R")
+this_dir <- if (!is.null(knitr::current_input())) {
+  dirname(normalizePath(knitr::current_input()))
+} else {
+  getwd()
+}
+# Older notebooks used a local 00-paths.R with a `paths` list (e.g. paths$phi).
+local_paths <- file.path(this_dir, "00-paths.R")
+if (file.exists(local_paths)) source(local_paths)
+
+# Tdrive is the ppiio folder on the lab share (gitignored 00-paths.R).
+paths_file <- file.path(this_dir, "..", "..", "manuscript", "scripts", "00-paths.R")
+if (!file.exists(paths_file)) {
+  stop(
+    "Missing 00-paths.R. Copy manuscript/scripts/00-paths.R.example to ",
+    "00-paths.R and set Tdrive to the ppiio folder on the lab share."
+  )
+}
+source(paths_file)
+if (!exists("Tdrive") || !nzchar(Tdrive)) {
+  stop("00-paths.R must define Tdrive as the ppiio folder on the lab share.")
+}
 ```
 
 This is a summary of medication data shared with Dan on Feb 22, 2021 by Rachel 
@@ -108,7 +128,7 @@ slids <-
   unique
 
 write.csv(slids,
-          file = "../data/derived/slids.csv",
+          file = file.path(Tdrive, "data/slids.csv"),
           row.names = FALSE)
 ```
 

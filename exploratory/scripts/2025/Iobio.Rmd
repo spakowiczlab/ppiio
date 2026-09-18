@@ -138,7 +138,7 @@ phyl.ra <- phyl.ra %>%
     setdiff(unique(Phylum), c("Firmicutes", "Other")), 
     "Other")))
 
-samples_to_remove <- c("DSpakowicz005_31-230123-1_R255_S4", "DSpakowicz005_32-230621-1_R255_S8", "DSpakowicz005_33-230127-1_R255_S6", "DSpakowicz005_34-230201-2_R255_S7")
+samples_to_remove <- c("P031_d28", "P032_d22", "P033_d21", "P034_d23")
 phyl.ra <- phyl.ra[!(phyl.ra$sample %in% samples_to_remove),]
 
 

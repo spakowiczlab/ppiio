@@ -1,27 +1,79 @@
 ---
-title: "Processing"
+title: "Cohort 1 clinical processing (de-identification)"
 author: "Anna Petouhoff"
 date: "2025-02-17"
 output: html_document
 ---
 
-```{r}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Directory of this notebook, used to find 00-paths.R and to write the RDS.
+this_dir <- if (!is.null(knitr::current_input())) {
+  dirname(normalizePath(knitr::current_input()))
+} else if (file.exists("Processing.Rmd")) {
+  getwd()
+} else if (file.exists("manuscript/scripts/Processing.Rmd")) {
+  file.path(getwd(), "manuscript/scripts")
+} else {
+  getwd()
+}
+
+paths_file <- file.path(this_dir, "00-paths.R")
+if (!file.exists(paths_file)) {
+  stop(
+    "Missing 00-paths.R. Copy manuscript/scripts/00-paths.R.example to ",
+    "00-paths.R and set Tdrive to the ppiio folder on the lab share."
+  )
+}
+source(paths_file)
+if (!exists("Tdrive") || !nzchar(Tdrive)) {
+  stop("00-paths.R must define Tdrive as the ppiio project folder on the lab share.")
+}
+```
+
+This notebook builds the **de-identified Cohort 1 clinical object** used by all
+Figure 1, Figure 2, Table 1, and Supplementary Figure 3 scripts.
+
+**PHI handling.** Raw REDCap exports and medication tables live on the lab
+share (root set as `Tdrive` in gitignored `00-paths.R`; see
+`00-paths.R.example`). Those files contain identifiers (MRN, date of birth,
+calendar dates of treatment and death). Those columns are used only to derive
+age, follow-up time, and medication timing relative to ICI start. The object
+written at the end contains **no identifiers and no calendar dates** — only
+the clinical variables that appear in the published analyses.
+
+**Output (cleaned clinical object, committed with the repo):**
+`manuscript/data/cohort1-cleaned-clinical.RDS`
+
+This notebook must be run on a machine with the lab share in order to *create*
+that RDS. Figure and table scripts read the RDS from `manuscript/data/` and
+do not need the raw files.
+
+```{r libraries}
 library(dplyr)
 library(tidyr)
 library(tidyverse)
 library(readxl)
-library(targets)
 ```
 
-# read the raw REDCap downloads (which contain PHI)
-```{r}
-CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/CoRR4684/2025-02-17/CoRR4684ARetrospecti_DATA_2025-02-17_2009.csv")
-P188 <- read.csv("T:/Labs/Spakowicz/ppiio/data/raw/P188/2025-02-17/P188NSCLCIOTox111611_DATA_2025-02-17_1010.csv")
-meds <- read_excel("T:/Labs/Spakowicz/ppiio/data/raw/IW-meds/PLATELET_Variable_update.xlsx", sheet = 2, skip = 1)
+# Raw inputs (PHI; lab share only)
+
+Relative paths below are joined to `Tdrive` from `00-paths.R`. Do not put a
+leading slash on the second `file.path()` argument; that would discard `Tdrive`
+on some systems.
+
+```{r read-raw}
+CoRR <- read.csv(file.path(Tdrive, "data/raw/CoRR4684/2025-02-17/CoRR4684ARetrospecti_DATA_2025-02-17_2009.csv"))
+meds <- read_excel(file.path(Tdrive, "data/raw/IW-meds/PLATELET_Variable_update.xlsx"), sheet = 2, skip = 1)
 ```
 
-#create a cancer  and immunotherapy key 
-```{r}
+# Recode keys for cancer type and immunotherapy class
+
+REDCap stores cancer type and ICI regimen as integers. Map them to the labels
+used in Table 1 and Figure 1C.
+
+```{r recode-keys}
 cancer.copy <- c("1 non-small cell lung cancer
 2 small cell lung cancer
 3 melanoma
@@ -41,9 +93,9 @@ cancer.copy <- c("1 non-small cell lung cancer
   strsplit(., split = "\n") %>%
   unlist
 
-cancer.key <- 
+cancer.key <-
   data.frame(
-    cancer =  cancer.copy %>%
+    cancer = cancer.copy %>%
       gsub("(\\d+).*", "\\1", .) %>%
       as.integer(),
     cancer.name = cancer.copy %>%
@@ -51,52 +103,62 @@ cancer.key <-
     stringsAsFactors = FALSE
   )
 
-ionames <- data.frame(immunotherapy = c(1,2,3,4,5,6,7,8,9,10), 
-                      Immunotherapy = c("Nivolumab", "Pembrolizumab", 
-                                        "Atezolizumab", "Ipilimumab", 
-                                        "Nivolumab + Ipilimumab", 
-                                        "Durvalumab + Tremelimumab", 
-                                        "Tremelimumab", "Nivolumab + Chemotherapy",
-                                        "Durvalumab", "Other"),
-                      stringsAsFactors = FALSE)
+ionames <- data.frame(
+  immunotherapy = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10),
+  Immunotherapy = c(
+    "Nivolumab", "Pembrolizumab",
+    "Atezolizumab", "Ipilimumab",
+    "Nivolumab + Ipilimumab",
+    "Durvalumab + Tremelimumab",
+    "Tremelimumab", "Nivolumab + Chemotherapy",
+    "Durvalumab", "Other"
+  ),
+  stringsAsFactors = FALSE
+)
 ```
 
+# Medication class lists (PPI, H2B, antibiotics)
 
-# functions 
-```{r}
-pull_class_assignments <- function(){
-  h2b <- read.table("T:/Labs/Spakowicz/ppiio/data/curated/h2b.txt", stringsAsFactors = F, sep = "\t") %>%
+Used to flag exposure and to compute days-on-drug relative to ICI start
+(Figures 1C, 2E, 2F).
+
+```{r med-class-helpers}
+pull_class_assignments <- function() {
+  h2b <- read.table(file.path(Tdrive, "data/curated/h2b.txt"),
+                    stringsAsFactors = FALSE, sep = "\t") %>%
     rename("medname" = "V1") %>%
     mutate(medclass = "H2B")
-  ppi <- read.table("T:/Labs/Spakowicz/ppiio/data/curated/proton-pump-inhibitors.txt", stringsAsFactors = F, sep = "\t") %>%
+  ppi <- read.table(file.path(Tdrive, "data/curated/proton-pump-inhibitors.txt"),
+                    stringsAsFactors = FALSE, sep = "\t") %>%
     rename("medname" = "V1") %>%
     mutate(medclass = "PPI")
-  
-  complete.class <- bind_rows(h2b, ppi)
-  return(complete.class)
+  bind_rows(h2b, ppi)
 }
 
-check_date_difference <- function(x){
+# Median offset between prescription ORDERING_DATE and START_DATE, used when
+# start date is missing.
+check_date_difference <- function(x) {
   tmp <- x %>%
     mutate(start = as.Date(START_DATE),
            ordering = as.Date(ORDERING_DATE)) %>%
     dplyr::select(start, ordering) %>%
     drop_na()
-  timedif <- tmp$ordering - tmp$start
-  summarize.dif <- summary(as.numeric(timedif))
-  return(summarize.dif)
+  summary(as.numeric(tmp$ordering - tmp$start))
 }
 
-class.key = pull_class_assignments()
+class.key <- pull_class_assignments()
 ```
 
+# Cohort 1 eligibility, survival time, and covariates
 
+Age is calculated from date of birth and ICI start, then DOB is discarded.
+OS time (`days`, `follow_up`) is days from ICI start to death or last contact;
+calendar dates of death/contact are discarded.
 
-# process CoRR4684
-```{r}
+```{r process-corr}
 ppi_corr <- CoRR %>%
-  rename("MRN"="record_id") %>%
-   filter(iostart != "") %>%
+  rename("MRN" = "record_id") %>%
+  filter(iostart != "") %>%
   filter(vitalstatus != 3) %>%
   mutate(vitalstatus = ifelse(vitalstatus == 1, 1, 0)) %>%
   mutate(deathdate = ifelse(deathdate == "", NA, deathdate),
@@ -105,15 +167,15 @@ ppi_corr <- CoRR %>%
          date = as.Date(date),
          iostart = as.Date(iostart),
          dob = as.Date(dob)) %>%
-  mutate(age=as.numeric(as.character(floor((iostart-dob)/365))))%>%
-   mutate(follow_up = as.numeric(as.character(date- iostart)))%>%
+  mutate(age = as.numeric(as.character(floor((iostart - dob) / 365)))) %>%
+  mutate(follow_up = as.numeric(as.character(date - iostart))) %>%
   left_join(cancer.key) %>%
-  mutate(Cancer = if_else(grepl("melanoma|non-small cell lung cancer",
-                                cancer.name),
-                          true = cancer.name,
-                          false = "Other"),
-         Cancer = fct_relevel(Cancer, c("melanoma", "non-small cell lung cancer",
-                                        "Other"))) %>%
+  mutate(
+    Cancer = if_else(grepl("melanoma|non-small cell lung cancer", cancer.name),
+                     true = cancer.name,
+                     false = "Other"),
+    Cancer = fct_relevel(Cancer, c("melanoma", "non-small cell lung cancer", "Other"))
+  ) %>%
   filter(immunotherapy != 11) %>%
   drop_na(ppi, dob, iostart) %>%
   mutate(prior_chemo = ifelse(chemo_prior == 1, "yes", "no")) %>%
@@ -121,132 +183,179 @@ ppi_corr <- CoRR %>%
   mutate(eventdate = as.POSIXct(eventdate, format = "%F"),
          iostart = as.POSIXct(iostart, format = "%F"),
          chemo_date = as.POSIXct(chemo_date, format = "%F")) %>%
-  mutate(days = eventdate - iostart) %>%
- mutate(chemo_timing = as.numeric(difftime(iostart, chemo_date, units = "days"))) %>%
-  mutate(chemo_greater_one_year = ifelse(chemo_timing >366, 1, 0))
+  mutate(days = as.numeric(eventdate - iostart)) %>%
+  mutate(chemo_timing = as.numeric(difftime(iostart, chemo_date, units = "days"))) %>%
+  mutate(chemo_greater_one_year = ifelse(chemo_timing > 366, 1, 0))
 ```
 
-```{r}
-pull_timing_info <- function(des.meds, meds.list, ord.offset, cdb, end.complete){
+# Medication timing relative to ICI start
 
-  meds.members <- lapply(des.meds$medname, function(x) as.data.frame(cbind(GENERIC_NAME = unique(meds.list$GENERIC_NAME[grepl(x, meds.list$GENERIC_NAME, ignore.case = T)]),
-                                                               medname = x))) %>%
+For each PPI, H2B, and antibiotic prescription, compute the set of days
+relative to ICI start that the patient was covered. These strings
+(`PPI.days.to.iostart`, etc.) are used by the 30-day sliding-window analysis
+(Figure 2E) and the ±28-day exposure flags (Figure 1C). Calendar prescription
+dates are not retained.
+
+```{r timing-functions}
+pull_timing_info <- function(des.meds, meds.list, ord.offset, cdb, end.complete) {
+
+  meds.members <- lapply(des.meds$medname, function(x) {
+    as.data.frame(cbind(
+      GENERIC_NAME = unique(meds.list$GENERIC_NAME[grepl(x, meds.list$GENERIC_NAME, ignore.case = TRUE)]),
+      medname = x
+    ))
+  }) %>%
     bind_rows() %>%
     mutate(GENERIC_NAME = as.character(GENERIC_NAME),
            medname = as.character(medname))
-  
+
   des.meds.full <- meds.members %>%
     left_join(des.meds) %>%
     filter(!is.na(GENERIC_NAME))
-  
+
   iostarts <- cdb %>%
     select(MRN, iostart) %>%
     mutate(iostart = as.Date(iostart))
-  
+
   time.obj.start <- des.meds.full %>%
     left_join(meds.list) %>%
-    mutate(MRN = as.character(MRN), 
+    mutate(MRN = as.character(MRN),
            START_DATE = as.Date(START_DATE),
            ORDERING_DATE = as.Date(ORDERING_DATE),
            END_DATE = as.Date(END_DATE)) %>%
     select(MRN, GENERIC_NAME, START_DATE, ORDERING_DATE, END_DATE, REFILLS, medname, medclass) %>%
     inner_join(iostarts) %>%
-    mutate(REFILLS = ifelse(is.na(REFILLS), 0, REFILLS),
-           med.dur = ifelse(end.complete == TRUE & !is.na(END_DATE) & !is.na(START_DATE),
-                           as.numeric(END_DATE - START_DATE + 1),
-                            (REFILLS+1) * 30),
-           days.to.io = ifelse(is.na(START_DATE),
-                               as.numeric(ORDERING_DATE - iostart) - ord.offset,
-                               as.numeric(START_DATE - iostart)),
-           stop.date = days.to.io + med.dur - 1,
-           )
-  
-  relative.days.covered <- lapply(1:nrow(time.obj.start), function(i) paste(time.obj.start$days.to.io[i]:time.obj.start$stop.date[i], collapse = ","))
-  
+    mutate(
+      REFILLS = ifelse(is.na(REFILLS), 0, REFILLS),
+      med.dur = ifelse(end.complete == TRUE & !is.na(END_DATE) & !is.na(START_DATE),
+                       as.numeric(END_DATE - START_DATE + 1),
+                       (REFILLS + 1) * 30),
+      days.to.io = ifelse(is.na(START_DATE),
+                          as.numeric(ORDERING_DATE - iostart) - ord.offset,
+                          as.numeric(START_DATE - iostart)),
+      stop.date = days.to.io + med.dur - 1
+    )
+
+  relative.days.covered <- lapply(
+    1:nrow(time.obj.start),
+    function(i) paste(time.obj.start$days.to.io[i]:time.obj.start$stop.date[i], collapse = ",")
+  )
   time.obj.start$relative.days.covered <- unlist(relative.days.covered)
-  
+
   time.class <- time.obj.start %>%
     group_by(MRN, medclass) %>%
-    summarise(alldays = paste(relative.days.covered, collapse = ","), .groups = 'drop')
-  time.class.unq <- lapply(1:nrow(time.class), function(x) paste(unique(unlist(strsplit(time.class$alldays[x], split = ","))), collapse = ","))
+    summarise(alldays = paste(relative.days.covered, collapse = ","), .groups = "drop")
+  time.class.unq <- lapply(
+    1:nrow(time.class),
+    function(x) paste(unique(unlist(strsplit(time.class$alldays[x], split = ","))), collapse = ",")
+  )
   time.class$alldays <- unlist(time.class.unq)
   time.class <- time.class %>%
     mutate(medclass = paste0(medclass, ".days.to.iostart")) %>%
     spread(key = medclass, value = alldays)
-  
-  corr.addtime <- cdb %>%
-    left_join(time.class)
-  
-  return(corr.addtime)
 
+  cdb %>% left_join(time.class)
 }
 
-generate_abx_key <- function(){
-  abxkey <- as.data.frame(cbind(medname = c("penicillin", "Amoxicillin", "Ampicillin", "Piperacillin", "Cefalexin", 
-                                            "Cephalexin", "Ceftriaxone", "Ceftazidime", "Cefepime", "Aztreonam", "Imipenem",
-                                            "Ciprofloxacin", "levofloxacin", "Moxifloxacin",
-                                            "Azithromycin", "Clarithromycin", "Erythromycin",
-                                            "Doxycycline", "Tetracycline", "Minocycline",
-                                            "Linezolid", "Daptomycin",
-                                            "Acyclovir", "Ganciclovir", "Valacyclovir", "Valaciclovir", "Valganciclovir", 
-                                            "Foscarnet", "Oseltamivir",
-                                            "Fluconazole", "Voriconazole", "Posaconazole", "Caspofungin", "Micafungin",
-                                            "Vancomycin", "Sulfamethoxazole","Clindamycin","Metronidazole"),
-                                medclass = "ABX"),
-                          stringsAsFactors = F)
-  return(abxkey)
+generate_abx_key <- function() {
+  as.data.frame(cbind(
+    medname = c(
+      "penicillin", "Amoxicillin", "Ampicillin", "Piperacillin", "Cefalexin",
+      "Cephalexin", "Ceftriaxone", "Ceftazidime", "Cefepime", "Aztreonam", "Imipenem",
+      "Ciprofloxacin", "levofloxacin", "Moxifloxacin",
+      "Azithromycin", "Clarithromycin", "Erythromycin",
+      "Doxycycline", "Tetracycline", "Minocycline",
+      "Linezolid", "Daptomycin",
+      "Acyclovir", "Ganciclovir", "Valacyclovir", "Valaciclovir", "Valganciclovir",
+      "Foscarnet", "Oseltamivir",
+      "Fluconazole", "Voriconazole", "Posaconazole", "Caspofungin", "Micafungin",
+      "Vancomycin", "Sulfamethoxazole", "Clindamycin", "Metronidazole"
+    ),
+    medclass = "ABX"
+  ), stringsAsFactors = FALSE)
 }
 
-abx.key = generate_abx_key()
+abx.key <- generate_abx_key()
+start.ordering.offset <- check_date_difference(meds)
 
+ppi_corr <- pull_timing_info(
+  bind_rows(class.key, abx.key), meds,
+  start.ordering.offset["Median"], ppi_corr, FALSE
+)
 ```
 
-```{r}
-start.ordering.offset = check_date_difference(meds)
+# Collapse ICI regimens to the classes used in Table 1
 
-ppi_corr = pull_timing_info(bind_rows(class.key,abx.key), meds, 
-                                 start.ordering.offset["Median"], ppi_corr, F)
-  
-```
-
-# Immunotherapy labeling
-```{r}
-ppi_corr <- 
-  ppi_corr %>%
-  left_join(ionames) %>%
-  mutate(Immunotherapy = if_else(grepl("Atezo|Durvalumab$|Nivolumab$|Pembro",
-                                           Immunotherapy),
-                                     true = "PD1/L1",
-                                     false = Immunotherapy),
-         Immunotherapy = if_else(grepl("Durvalumab \\+ Tremelimumab$|Nivolumab \\+ Ipilimumab$",
-                                           Immunotherapy),
-                                     true = "PD1/L1 + CTLA4",
-                                     false = Immunotherapy),
-         Immunotherapy = if_else(grepl("Tremelimumab$|Ipilimumab$",
-                                           Immunotherapy),
-                                     true = "CTLA4",
-                                     false = Immunotherapy),
-         Immunotherapy = if_else(grepl("Nivolumab \\+ Chemotherapy",
-                                           Immunotherapy),
-                                     true = "Other",
-                                     false = Immunotherapy),
-         Immunotherapy = fct_relevel(Immunotherapy, c("PD1/L1", "CTLA4", "PD1/L1 + CTLA4", "Other")))
-         
-```
-
-# Select only those columns needed to replicate the analyses in the manuscript (removing all PHI)
-```{r}
+```{r immunotherapy-labels}
 ppi_corr <- ppi_corr %>%
-  select(ppi, statin, h2b_iostart, steroid_iostart, abx_iostart, nsaid_iostart,vitalstatus, immunotherapy, iostart, ppi_start, cancer.name, PPI.days.to.iostart, H2B.days.to.iostart, days, ABX.days.to.iostart, days, staging, cci_number, line_of_therapy,prior_chemo, chemo_greater_one_year, ecog,age, follow_up, sex,Cancer, Immunotherapy, bmi)
+  left_join(ionames) %>%
+  mutate(
+    Immunotherapy = if_else(grepl("Atezo|Durvalumab$|Nivolumab$|Pembro", Immunotherapy),
+                            true = "PD1/L1", false = Immunotherapy),
+    Immunotherapy = if_else(grepl("Durvalumab \\+ Tremelimumab$|Nivolumab \\+ Ipilimumab$", Immunotherapy),
+                            true = "PD1/L1 + CTLA4", false = Immunotherapy),
+    Immunotherapy = if_else(grepl("Tremelimumab$|Ipilimumab$", Immunotherapy),
+                            true = "CTLA4", false = Immunotherapy),
+    Immunotherapy = if_else(grepl("Nivolumab \\+ Chemotherapy", Immunotherapy),
+                            true = "Other", false = Immunotherapy),
+    Immunotherapy = fct_relevel(Immunotherapy, c("PD1/L1", "CTLA4", "PD1/L1 + CTLA4", "Other"))
+  )
 ```
 
-# Write as CSV
-```{r}
-write.csv(ppi_corr,  "T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv")
+# Keep only variables used in the manuscript; drop PHI
+
+Columns retained, and where they are used:
+
+- Concomitant meds at ICI start (`ppi`, `statin`, `h2b_iostart`, `steroid_iostart`,
+  `abx_iostart`, `nsaid_iostart`): Figure 1B, 1C, 2F, 2G, Figure S3
+- Survival (`days`, `vitalstatus`): Figures 1D–F, 2A–G, Figure S3, Cox models
+- Cancer labels (`cancer.name`, `Cancer`): Figure 1C heatmap; Table 1
+- Relative medication-day strings (`PPI.days.to.iostart`, `H2B.days.to.iostart`,
+  `ABX.days.to.iostart`): Figure 1C (±28-day window), Figure 2E (sliding window)
+- Clinical covariates (`staging`, `cci_number`, `line_of_therapy`, `prior_chemo`,
+  `chemo_greater_one_year`, `ecog`, `age`, `follow_up`, `sex`, `Immunotherapy`):
+  Table 1 and stratified / multivariable survival models
+
+Explicitly dropped: MRN, date of birth, death/last-contact dates, ICI start
+calendar date, and all other REDCap fields not used in the paper.
+
+```{r drop-phi}
+ppi_corr <- ppi_corr %>%
+  transmute(
+    ppi, statin, h2b_iostart, steroid_iostart, abx_iostart, nsaid_iostart,
+    vitalstatus, days,
+    cancer.name, Cancer, Immunotherapy,
+    PPI.days.to.iostart, H2B.days.to.iostart, ABX.days.to.iostart,
+    staging, cci_number, line_of_therapy, prior_chemo, chemo_greater_one_year,
+    ecog, age, follow_up, sex
+  )
 ```
 
+```{r write-cleaned}
+out_file <- normalizePath(
+  file.path(this_dir, "..", "data", "cohort1-cleaned-clinical.RDS"),
+  mustWork = FALSE
+)
+dir.create(dirname(out_file), recursive = TRUE, showWarnings = FALSE)
+saveRDS(ppi_corr, file = out_file)
+```
 
+```{r check-cleaned}
+# Confirm the written object has no identifiers and only manuscript variables.
+stopifnot(file.exists(out_file))
+check <- readRDS(out_file)
 
+forbidden <- c(
+  "MRN", "record_id", "last_name", "dob", "iostart", "deathdate",
+  "lastcontact", "eventdate", "chemo_date", "ppi_start", "date"
+)
+present_forbidden <- intersect(forbidden, names(check))
+if (length(present_forbidden)) {
+  stop("PHI-like columns still present: ", paste(present_forbidden, collapse = ", "))
+}
 
-
+message("Wrote: ", out_file)
+message("Rows: ", nrow(check), "  Columns: ", ncol(check))
+print(names(check))
+```
 

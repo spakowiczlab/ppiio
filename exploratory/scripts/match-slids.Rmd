@@ -9,11 +9,27 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 
-source("00-paths.R")
+# Tdrive is the ppiio folder on the lab share (gitignored 00-paths.R).
+this_dir <- if (!is.null(knitr::current_input())) {
+  dirname(normalizePath(knitr::current_input()))
+} else {
+  getwd()
+}
+paths_file <- file.path(this_dir, "..", "..", "manuscript", "scripts", "00-paths.R")
+if (!file.exists(paths_file)) {
+  stop(
+    "Missing 00-paths.R. Copy manuscript/scripts/00-paths.R.example to ",
+    "00-paths.R and set Tdrive to the ppiio folder on the lab share."
+  )
+}
+source(paths_file)
+if (!exists("Tdrive") || !nzchar(Tdrive)) {
+  stop("00-paths.R must define Tdrive as the ppiio project folder on the lab share.")
+}
 ```
 
 ```{r}
-x <- read.csv("../data/derived/slids.csv") %>%
+x <- read.csv(file.path(Tdrive, "data/slids.csv")) %>%
   rename("SLid" = "RNA.SLID")
 
 head(x)

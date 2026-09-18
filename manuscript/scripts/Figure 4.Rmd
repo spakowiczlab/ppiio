@@ -1,225 +1,214 @@
 ---
-title: "Iobio Correlation"
+title: "Figure 4 — Cohort 3 microbiome, CyTOF, and correlation"
 author: "Anna Petouhoff"
 date: "2025-03-26"
 output: html_document
 ---
 
-```{r}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Produces:
+
+- **Figure 4B**: phylum stacked bars for baseline stool samples, by PPI use
+- **Figure 4C**: CyTOF immune-cell abundance heatmap at ICI start
+- **Figure 4D**: Spearman correlation of *Enterocloster clostridioformis*
+  relative abundance with terminal-effector CD4 T cells
+
+Cohort 3 is the n = 8 NSCLC/RCC patients with both a baseline microbiome
+sample and CyTOF. Sample names in the MetaPhlAn table are study IDs
+(`P026_d0`, …) with days relative to ICI start; they do not contain calendar
+dates. The only clinical variable used here is PPI use
+(`../data/Cohort_3/clinical.csv`).
+
+```{r libraries}
 library(tidyverse)
-library(readxl)
-library(dplyr)
 library(broom)
-library(Hmisc)
 library(ggplot2)
 library(pheatmap)
 library(viridis)
-library(grid)
 ```
 
-# load data
-```{r}
-micro <- read.csv("../data/Cohort_3/2023-12-07_mpa-aggregate.csv")
+```{r load}
+micro <- read.csv("../data/Cohort_3/2023-12-07_mpa-aggregate.csv", stringsAsFactors = FALSE)
 cytof <- readRDS("../data/Cohort_3/cytof_normalized.RDS")
+clin3 <- read.csv("../data/Cohort_3/clinical.csv", stringsAsFactors = FALSE)
 ```
 
-# micro data to species level
-```{r}
-species <- micro[grep("s_", micro$Taxonomy),]
-species <- species[-grep("t_", species$Taxonomy),]
+```{r ids}
+# Map recoded stool sample IDs to the CyTOF Patient ID scheme ("26 _ 0").
+# d0 = baseline; other suffixes are follow-up samples (excluded from figures).
+sample_map <- tibble(
+  sample = c("P026_d0", "P028_d0", "P029_d0", "P031_d0", "P032_d0",
+             "P033_d0", "P034_d0", "P041_d0",
+             "P031_d28", "P032_d22", "P033_d21", "P034_d23"),
+  patient = c(26, 28, 29, 31, 32, 33, 34, 41, 31, 32, 33, 34),
+  day = c(0, 0, 0, 0, 0, 0, 0, 0, 28, 22, 21, 23)
+) %>%
+  mutate(`Patient ID` = paste(patient, day, sep = " _ ")) %>%
+  left_join(clin3, by = "patient")
 
-delimiter <- "s_"
-species$Taxonomy <- sub(paste0(".*", delimiter), "", species$Taxonomy)
-species <- species[,-which(names(species) %in% c("TaxNum","Alternative.Tax"))]
-
-species = reshape(data= species,
-                       idvar= "sample",
-                       timevar= "Taxonomy",
-                       direction = "wide")
-species[is.na(family)] <- 0
-row_names <- c("31 _ 0", "33 _ 0", "34 _ 0", "41 _ 0", "26 _ 0", "28 _ 0", "29 _ 0", "31 _ 28", "32 _ 0", "32 _ 22", "33 _ 21", "34 _ 23")
-species$'Patient ID' <- row_names
-resp.id <- species[,-2:-632]
-resp.id <-resp.id[-c(8,10,11,12),]
-
-new.species <- species[,-1]
+# Baseline stool samples used in the published panels.
+baseline_map <- sample_map %>% filter(day == 0)
 ```
 
-# merging cytof and micro data
-```{r}
-merged <- merge(new.species, cytof, by = "Patient ID", all = FALSE)
-rownames(merged) <- merged[,1]
-cytof <- merged[,-1:-633]
+# Species-level relative abundance, baseline samples only
+
+```{r species}
+species <- micro %>%
+  filter(grepl("s_", Taxonomy), !grepl("t_", Taxonomy)) %>%
+  inner_join(baseline_map, by = "sample") %>%
+  mutate(Taxonomy = sub(".*s__", "", Taxonomy))
+
+species_wide <- species %>%
+  select(`Patient ID`, Taxonomy, RelAbun, PPI) %>%
+  pivot_wider(names_from = Taxonomy, values_from = RelAbun, values_fill = 0)
 ```
 
-# isolated microbes of interest and baseline samples
-```{r}
-interest <- merged[,-1:-9]
-interest <- interest[,-2:-8]
-interest <- interest[,-3:-691]
-interest[is.na(interest)] <- 0
-interest <- interest[-c(5,7,9,11),]
-cytof <- cytof[-c(5,7,9,11),]
+# Merge baseline CyTOF with microbiome
+
+```{r merge}
+cytof_baseline <- cytof %>%
+  filter(`Patient ID` %in% baseline_map$`Patient ID`)
+
+merged <- inner_join(species_wide, cytof_baseline, by = "Patient ID")
+
+# Drop immune-cell columns with missing or non-finite values (markers not
+# acquired for this batch).
+immune_cols <- setdiff(names(cytof_baseline), c("Patient ID", "Time"))
+keep_immune <- immune_cols[vapply(merged[immune_cols], function(x) {
+  all(is.finite(x)) && sum(!is.na(x)) > 1
+}, logical(1))]
+cytof_mat <- merged[, keep_immune, drop = FALSE]
 ```
 
-# adding PPI use information
-```{r}
-PPI <- c("N", "N", "Y", "N", "N", "N", "NA", "Y", "Y", "Y", "Y", "N")
-merged$PPI <- PPI
-merged <- merged[-c(5,7,9,11),]
-merged <- merged %>%
-  mutate_at(c("RelAbun._Clostridium_sp_AT4", "RelAbun._Enterocloster_clostridioformis"), ~replace(.,is.na(.), 0))
+# Figure 4D: Enterocloster clostridioformis vs TE CD4
+
+```{r figure-4d}
+ggplot(merged, aes(x = `TE CD4`, y = Enterocloster_clostridioformis)) +
+  geom_point() +
+  stat_smooth(method = "lm", aes(group = 1)) +
+  labs(
+    x = "TE CD4 Count",
+    y = expression(atop("Relative Abundance of", italic("Enterocloster clostridioformis")))
+  ) +
+  theme_minimal(base_size = 8)
+
+ggsave("../figures/Figure4D.svg", device = "svg", height = 1.75, width = 5)
 ```
 
-# filtering out infiniate and NAs in cytof 
-```{r}
-filter <- function(df) {
-  df %>%
-    select(where(~all(is.finite(.)) && sum(!is.na(.)) > 1))
-}
-cytof <- filter(cytof)
-```
+# Exploratory Spearman correlations (text; FDR-adjusted)
 
+```{r correlations}
+# Two PPI-associated species carried into the immune-cell screen.
+interest <- merged %>%
+  select(Clostridium_sp_AT4, Enterocloster_clostridioformis) %>%
+  mutate(across(everything(), ~ replace(., is.na(.), 0)))
 
-# running correlation
-```{r}
 set.seed(9)
-corr.results <- lapply(colnames(interest), function(x)
-  lapply(colnames(cytof), function(y) cor.test(interest[[x]], cytof[[y]],
-                                               method = "spearman", exact = F) %>%
-           tidy() %>%
-           mutate(microbe = x, cytof = y) %>%
-           bind_rows())) %>%
+corr.results <- lapply(colnames(interest), function(x) {
+  lapply(keep_immune, function(y) {
+    cor.test(interest[[x]], merged[[y]], method = "spearman", exact = FALSE) %>%
+      tidy() %>%
+      mutate(microbe = x, cytof = y)
+  }) %>% bind_rows()
+}) %>%
   bind_rows() %>%
   mutate(p.adj = p.adjust(p.value, method = "fdr"))
 ```
 
-#Plotting significant correlation
-```{r}
-ggplot(merged, aes(x=`TE CD4` , y=RelAbun._Enterocloster_clostridioformis)) +
-  geom_point() + 
-  stat_smooth(method = "lm", aes(group = 1)) + 
-  labs(
-    x = "TE CD4 Count", 
-    y = expression(atop("Relative Abundance of", italic("Enterocloster clostridioformis")))
-  ) +
-  theme_minimal(base_size = 8)
-  ggsave("../figures/Figure4D.svg", device = "svg", height = 1.75, width = 5)
-```
+# Figure 4B: phylum stacked bars
 
-
-
-#stacked bar plot
-```{r}
-resp.id$PPI <- c("N","Y","Y","N","N","N","Y","N")
-phyl.ra <- micro[grep("p__", micro$Taxonomy),]
-phyl.ra <- phyl.ra[-grep("c__", phyl.ra$Taxonomy),]
+```{r figure-4b}
+phyl.ra <- micro %>%
+  filter(grepl("p__", Taxonomy), !grepl("c__", Taxonomy)) %>%
+  inner_join(baseline_map, by = "sample")
 
 top.phyl <- phyl.ra %>%
   group_by(Taxonomy) %>%
   summarise(med.abun = median(RelAbun, na.rm = TRUE)) %>%
-  arrange(desc(med.abun)) 
-top.phyl <- subset(top.phyl, med.abun > 0.85)
-
+  arrange(desc(med.abun)) %>%
+  filter(med.abun > 0.85)
 
 phyl.ra <- phyl.ra %>%
-  mutate(Phylum = ifelse(Taxonomy %in% top.phyl$Taxonomy, gsub("p__", "", Taxonomy), 
-                         "Other")) %>% 
-  left_join(resp.id)
+  mutate(Phylum = ifelse(Taxonomy %in% top.phyl$Taxonomy,
+                         gsub("p__", "", Taxonomy), "Other"))
 phyl.ra$Phylum <- sub("^[^|]*\\|", "", phyl.ra$Phylum)
 
-# reorder samples by the total relative abundance of Firmicutes
 phyl.ra <- phyl.ra %>%
   group_by(sample) %>%
   mutate(Firmicutes_Abundance = sum(RelAbun[Phylum == "Firmicutes"], na.rm = TRUE)) %>%
   ungroup() %>%
-  mutate(sample = fct_reorder(sample, Firmicutes_Abundance))
-
-# order of microbes with 'other' last
-phyl.ra <- phyl.ra %>%
+  mutate(sample = fct_reorder(sample, Firmicutes_Abundance)) %>%
   mutate(Phylum = factor(Phylum, levels = c(
-    "Firmicutes", 
-    setdiff(unique(Phylum), c("Firmicutes", "Other")), 
-    "Other")))
+    "Firmicutes",
+    setdiff(unique(Phylum), c("Firmicutes", "Other")),
+    "Other"
+  )))
 
-samples_to_remove <- c("DSpakowicz005_31-230123-1_R255_S4", "DSpakowicz005_32-230621-1_R255_S8", "DSpakowicz005_33-230127-1_R255_S6", "DSpakowicz005_34-230201-2_R255_S7")
-phyl.ra <- phyl.ra[!(phyl.ra$sample %in% samples_to_remove),]
+bar_colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2",
+                "cornflowerblue", "deeppink4", "#999933")
 
-
-colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2", "cornflowerblue", "deeppink4", "#999933") 
-```
-
-```{r}
 phyl.ra %>%
-  ggplot(aes(y = `Patient ID`, x = RelAbun, fill = Phylum)) +  
-  geom_bar(position = "fill", stat = "identity", width = 0.7, color = "white", linewidth = 0.1) + 
-  scale_fill_manual(values = colors) + 
+  ggplot(aes(y = `Patient ID`, x = RelAbun, fill = Phylum)) +
+  geom_bar(position = "fill", stat = "identity", width = 0.7,
+           color = "white", linewidth = 0.1) +
+  scale_fill_manual(values = bar_colors) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.05))) +
-  labs(y = "Patients", x = "Relative Abundance") + 
+  labs(y = "Patients", x = "Relative Abundance") +
   theme_minimal(base_size = 9) +
   theme(
-    axis.text.y = element_blank(), 
+    axis.text.y = element_blank(),
     axis.ticks.y = element_blank(),
     panel.grid = element_blank(),
     legend.position = "bottom",
     legend.direction = "horizontal",
     legend.title = element_blank(),
-    legend.text = element_text(size = 6),        
-    legend.key.size = unit(0.3, "cm"),           
-    legend.spacing.x = unit(0.1, "cm"),         
+    legend.text = element_text(size = 6),
+    legend.key.size = unit(0.3, "cm"),
+    legend.spacing.x = unit(0.1, "cm"),
     strip.text.y = element_text(angle = 0, face = "bold"),
     strip.background = element_rect(fill = "gray95", color = NA),
     plot.margin = margin(t = 5, r = 10, b = 5, l = 5)
   ) +
-  guides(fill = guide_legend(ncol = 4, byrow = TRUE)) + 
+  guides(fill = guide_legend(ncol = 4, byrow = TRUE)) +
   facet_grid(PPI ~ ., scales = "free_y", space = "free_y")
 
-ggsave("../figures/Figure4B.svg", 
-       device = "svg", height = 3, width = 3.25)
+ggsave("../figures/Figure4B.svg", device = "svg", height = 3, width = 3.25)
 ```
 
-```{r}
+# Figure 4C: CyTOF heatmap, columns ordered by PPI status
 
-immune_matrix <- t(as.matrix(cytof))
+```{r figure-4c}
+immune_matrix <- t(as.matrix(cytof_mat))
+colnames(immune_matrix) <- merged$`Patient ID`
 
-
-#adding ppi annotation
-ppi_status <-  c("N","N","Y","N","N","Y", "Y", "N")
-ppi_annotation <- data.frame(PPI = ppi_status)
-rownames(ppi_annotation) <- colnames(immune_matrix)
-
-# reorder the column bases on ppi status
-ordered_columns <- order(ppi_status)  
-ordered_immune_matrix <- immune_matrix[, ordered_columns]
+ppi_annotation <- data.frame(
+  PPI = merged$PPI,
+  row.names = merged$`Patient ID`
+)
+ordered_columns <- order(merged$PPI)
+ordered_immune_matrix <- immune_matrix[, ordered_columns, drop = FALSE]
 ordered_ppi_annotation <- ppi_annotation[ordered_columns, , drop = FALSE]
 
-annotation_colors <- list(
-  PPI = c("Y" = "lightsalmon2", "N" = "slateblue2"))
+annotation_colors <- list(PPI = c("Y" = "lightsalmon2", "N" = "slateblue2"))
 
-# 1. Create a vector of empty strings the same length as your columns
 empty_names <- rep("", ncol(ordered_immune_matrix))
-
-# 2. Put your X-axis title in the middle of that vector
-# This trick forces pheatmap to treat it as a label and reserve space
-empty_names[round(length(empty_names)/2)] <- "Patient Samples"
+empty_names[round(length(empty_names) / 2)] <- "Patient Samples"
 
 svg("../figures/Figure4C.svg", width = 4.25, height = 5.75)
-
-pheatmap(ordered_immune_matrix,
-         cluster_rows = FALSE,
-         cluster_cols = FALSE,
-         color = viridis(100),
-         fontsize_row = 9,
-         # Use our custom vector here:
-         labels_col = empty_names, 
-         angle_col = 0,                # Keep the title horizontal
-         fontsize_col = 10,            # Adjust size of your X-axis title
-         annotation_col = ppi_annotation,
-         annotation_colors = annotation_colors)
-
+pheatmap(
+  ordered_immune_matrix,
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  color = viridis(100),
+  fontsize_row = 9,
+  labels_col = empty_names,
+  angle_col = 0,
+  fontsize_col = 10,
+  annotation_col = ordered_ppi_annotation,
+  annotation_colors = annotation_colors
+)
 dev.off()
-     
 ```
-
-
-

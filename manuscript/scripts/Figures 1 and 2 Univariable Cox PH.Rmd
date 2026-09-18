@@ -1,39 +1,44 @@
 ---
-title: "CoRR Cox Proportional Hazard Model"
+title: "Figures 1 and 2 — univariable Cox models (in-text HRs)"
 author: "Anna Petouhoff"
 date: "2025-05-01"
 output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-```{r}
+Computes the **univariable Cox proportional hazards ratios** reported in the
+text for Figures 1D–F and 2A–D (PPI vs no PPI). Does not write a figure file.
+
+Clinical variables used: `days`, `vitalstatus`, `ppi`, `line_of_therapy`,
+`prior_chemo`, `chemo_greater_one_year`.
+
+Cleaned Cohort 1 object: `../data/cohort1-cleaned-clinical.RDS`
+
+```{r libraries}
 library(survival)
 library(dplyr)
 library(tidyverse)
-library(tidyr)
 ```
 
-# load data
-```{r}
-CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") %>%
-  select(days, vitalstatus, ppi,line_of_therapy,prior_chemo, chemo_greater_one_year)
+```{r load}
+CoRR <- readRDS("../data/cohort1-cleaned-clinical.RDS") %>%
+  select(days, vitalstatus, ppi, line_of_therapy, prior_chemo, chemo_greater_one_year)
 ```
 
-#run coxph 
-```{r}
-all_cancers <-coxph(Surv(days, vitalstatus)~ ppi, data = CoRR)
-first_line <-coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$line_of_therapy == 1,])
-second_line <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$line_of_therapy != 1,])
-wo_chemo <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$prior_chemo == "no",])
-chemo <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$prior_chemo == "yes",])
-more <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$chemo_greater_one_year == 1,])
-less <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$chemo_greater_one_year == 0,])
-
+```{r cox-models}
+all_cancers <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR)
+first_line <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$line_of_therapy == 1, ])
+second_line <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$line_of_therapy != 1, ])
+wo_chemo <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$prior_chemo == "no", ])
+chemo <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$prior_chemo == "yes", ])
+more <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$chemo_greater_one_year == 1, ])
+less <- coxph(Surv(days, vitalstatus) ~ ppi, data = CoRR[CoRR$chemo_greater_one_year == 0, ])
 ```
 
-#combine information into a dataframe 
-```{r}
-# List of models with labels
+```{r summarize}
 models <- list(
   "All Cancers" = all_cancers,
   "1st Line" = first_line,
@@ -44,13 +49,11 @@ models <- list(
   "<=1 Year Chemo" = less
 )
 
-# Extract function
 extract_cox_results <- function(model) {
   s <- summary(model)
   HR <- exp(s$coef[1])
   CI <- exp(confint(model))[1, ]
   pval <- s$coef[1, "Pr(>|z|)"]
-  
   data.frame(
     HR = round(HR, 2),
     CI_lower = round(CI[1], 2),
@@ -59,16 +62,9 @@ extract_cox_results <- function(model) {
   )
 }
 
-# Build result dataframe
 cox_results <- do.call(rbind, lapply(models, extract_cox_results))
 cox_results$Group <- names(models)
 rownames(cox_results) <- NULL
-
-# Reorder columns
 cox_results <- cox_results[, c("Group", "HR", "CI_lower", "CI_upper", "p_value")]
-
-# View the table
 print(cox_results)
-
 ```
-

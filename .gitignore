@@ -41,6 +41,11 @@ vignettes/*.pdf
 # json file
 ppiio.json
 
-#paths file
+# Local lab-share root (Tdrive). Copy manuscript/scripts/00-paths.R.example
+# to 00-paths.R and set Tdrive; do not commit the real path.
 00-paths.R
+
+# Knitted HTML from Processing.Rmd can include intermediate objects; do not commit.
+manuscript/scripts/*.html
+
 .DS_Store

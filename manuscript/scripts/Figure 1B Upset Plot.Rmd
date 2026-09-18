@@ -1,5 +1,5 @@
 ---
-title: "CM Upset Plot"
+title: "Figure 1B — concomitant medication upset plot"
 author: "Anna Petouhoff"
 date: "2026-01-26"
 output: html_document
@@ -7,39 +7,48 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+```
+
+Produces **Figure 1B**: combinations of concomitant medications at ICI start
+in Cohort 1 (all-cancers retrospective cohort).
+
+Clinical variables used (binary exposure at ICI start): PPI, statin, H2B,
+steroids, antibiotics, NSAIDs. No identifiers.
+
+Cleaned Cohort 1 object: `../data/cohort1-cleaned-clinical.RDS`
+(created by `Processing.Rmd`).
+
+```{r libraries}
 library(tidyverse)
 library(dplyr)
 library(UpSetR)
 ```
 
-
-```{r}
-df <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") %>%
-  select( ppi, statin, h2b_iostart, steroid_iostart, abx_iostart, nsaid_iostart)
-df <- df %>%
+```{r load}
+# Restrict to the six concomitant-medication flags used in Figure 1B.
+df <- readRDS("../data/cohort1-cleaned-clinical.RDS") %>%
+  select(ppi, statin, h2b_iostart, steroid_iostart, abx_iostart, nsaid_iostart) %>%
   rename(
     `PPI` = ppi,
-    `Statin` = statin, 
+    `Statin` = statin,
     `H2B` = h2b_iostart,
     `Steroids` = steroid_iostart,
     `ABx` = abx_iostart,
-    `NSAIDs` = nsaid_iostart)
+    `NSAIDs` = nsaid_iostart
+  )
 ```
 
-```{r}
+```{r figure-1b}
 svg("../figures/Figure1B.svg", width = 6, height = 3.5)
-UpSetR::upset(df,
-      sets = c("NSAIDs", "ABx", "Steroids", "H2B", "Statin", "PPI"), 
-     order.by = "freq",             
-      main.bar.color = "slateblue2",
-      sets.bar.color = NA,
-     sets.x.label ="",
-     set_size.show = FALSE,
-     text.scale = c(1.5, 1, 2.0, 0, 1.25, 1.25))
+UpSetR::upset(
+  df,
+  sets = c("NSAIDs", "ABx", "Steroids", "H2B", "Statin", "PPI"),
+  order.by = "freq",
+  main.bar.color = "slateblue2",
+  sets.bar.color = NA,
+  sets.x.label = "",
+  set_size.show = FALSE,
+  text.scale = c(1.5, 1, 2.0, 0, 1.25, 1.25)
+)
 dev.off()
-
-
 ```
-
-
-

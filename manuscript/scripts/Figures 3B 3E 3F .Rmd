@@ -1,44 +1,51 @@
 ---
-title: "Mitox data review"
+title: "Figures 3B, 3E, and 3F — Cohort 2 composition and ANCOM-BC2"
 author: "Anna Petouhoff"
 date: "2025-03-11"
 output: html_document
 ---
 
-```{r}
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Produces:
+
+- **Figure 3B**: stacked phylum relative abundance at baseline, by PPI use
+- **Figure 3E**: ANCOM-BC2 volcano plot (PPI vs no PPI)
+- **Figure 3F**: taxa detected only in non-PPI users (structural zeros)
+
+Figures 3E–F read the saved ANCOM-BC2 object already in the repo
+(`../data/Cohort_2/ANCOM-BC2_response_baseline.RData`). Knit
+`Figure 3 Cohort 2 ANCOM-BC2.Rmd` only if you need to regenerate that file.
+
+Clinical variables used: `Patient Id` (join key) and `PPI`.
+
+```{r libraries}
 library(ggplot2)
 library(ggrepel)
 library(tidyverse)
-library(ggfortify)
-library(vegan)
-library(grid)
 ```
 
-# load data 
-```{r}
+```{r load}
 load("../data/Cohort_2/ra-long.rds")
 load("../data/Cohort_2/clinical.rds")
 load("../data/Cohort_2/mitox_microbiome_metadata.rds")
 load("../data/Cohort_2/counts-wide.rds")
 load("../data/Cohort_2/phylum-labels.rds")
-load("../data/Cohort_2/taxonomy-key.rds")
 load("../data/Cohort_2/ANCOM-BC2_response_baseline.RData")
+
+demographics <- demographics %>%
+  select(`Patient Id`, PPI) %>%
+  mutate(PPI = if_else(is.na(PPI), "No", as.character(PPI)))
 ```
 
-
-# Figure Feature
-```{r}
-colors <- c("#6699CC", "#999933", "#CC6677","#44AA99","#DDCC77","#882255")
-colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2", "cornflowerblue", "deeppink4") 
-
-# Response ID's
+```{r baseline}
 resp.id <- mic.meta %>%
-  left_join(demographics) %>%
-  select(sample, Days, PPI, Response) %>%
-  mutate(PPI = if_else(is.na(PPI), 'No', as.character(PPI)))
+  left_join(demographics, by = "Patient Id") %>%
+  select(sample, Days, PPI)
 
-# baseline samples 
-base.samps <- mic.meta %>% 
+base.samps <- mic.meta %>%
   group_by(`Patient Id`) %>%
   arrange(Days) %>%
   slice_head(n = 1) %>%
@@ -46,8 +53,11 @@ base.samps <- mic.meta %>%
   filter(abs(Days) <= 10)
 ```
 
-# Stacked Bar
-```{r}
+# Figure 3B: phylum stacked bars at baseline
+
+```{r figure-3b}
+colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2", "cornflowerblue", "deeppink4")
+
 phyl.ra <- ra.l %>%
   filter(grepl("p__", microbe))
 
@@ -58,242 +68,173 @@ top.phyl <- phyl.ra %>%
   filter(med.abun > 0)
 
 phyl.ra <- phyl.ra %>%
-  mutate(Phylum = ifelse(microbe %in% top.phyl$microbe, gsub("p__", "", microbe), 
-                         "Other")) %>%
-  left_join(resp.id)
+  mutate(Phylum = ifelse(microbe %in% top.phyl$microbe, gsub("p__", "", microbe), "Other")) %>%
+  left_join(resp.id, by = "sample")
 
-# reorder samples by the total relative abundance of Firmicutes
+# Order samples by Firmicutes abundance; put "Other" last in the legend.
 phyl.ra <- phyl.ra %>%
   group_by(sample) %>%
   mutate(Firmicutes_Abundance = sum(RelAbun[Phylum == "Firmicutes"], na.rm = TRUE)) %>%
   ungroup() %>%
-  mutate(sample = fct_reorder(sample, Firmicutes_Abundance))
-
-# order of microbes with 'other' last
-phyl.ra <- phyl.ra %>%
+  mutate(sample = fct_reorder(sample, Firmicutes_Abundance)) %>%
   mutate(Phylum = factor(Phylum, levels = c(
-    "Firmicutes", 
-    setdiff(unique(Phylum), c("Firmicutes", "Other")), 
-    "Other")))
-
-phyl.ra %>%
-  filter(sample %in% base.samps$sample) %>%
-  ggplot(aes(x = sample, y = RelAbun, fill = Phylum)) +
-  geom_bar(position = "fill", stat = "identity") +
-  scale_fill_manual(values = colors) + 
-  labs(x = "", y = "") +
-  theme_minimal(base_size = 9) +
-  theme(
-    axis.text.x = element_blank(),
-    axis.ticks.x = element_blank(),
-    axis.text.y = element_blank(),
-    panel.grid.major = element_blank(),
-    legend.position = "top",
-    legend.box = "horizontal",
-    legend.title = element_blank(),
-    strip.placement = "outside", # Moves facet labels outside
-    strip.background = element_blank(), # Optional: Removes the background of facet labels
-    strip.text.x = element_text(size = 9) # Adjusts facet label text size
-  ) +
-  facet_grid(~PPI, scales = "free_x", space = "free", switch = "x") +
-  guides(fill = guide_legend(ncol = 6, nrow = 1, byrow = TRUE))
+    "Firmicutes",
+    setdiff(unique(Phylum), c("Firmicutes", "Other")),
+    "Other"
+  )))
 
 p_bar <- phyl.ra %>%
   filter(sample %in% base.samps$sample) %>%
   ggplot(aes(x = sample, y = RelAbun, fill = Phylum)) +
   geom_bar(position = "fill", stat = "identity", color = "white", linewidth = 0.1) +
-  scale_fill_manual(values = colors) + 
-  labs(x = "PPI Use", y = "") + 
+  scale_fill_manual(values = colors) +
+  labs(x = "PPI Use", y = "") +
   theme_minimal(base_size = 9) +
   theme(
-    # Clean up axes
     axis.text.x = element_blank(),
     axis.ticks.x = element_blank(),
     axis.text.y = element_blank(),
     panel.grid = element_blank(),
-    
-    # PPI Use Title - added back and positioned
     axis.title.x = element_text(size = 7, face = "bold", margin = margin(t = 2)),
-    
-    # Legend settings - split into 2 rows and shrunk
     legend.position = "top",
     legend.title = element_blank(),
     legend.text = element_text(size = 6.8),
     legend.key.size = unit(0.2, "cm"),
     legend.spacing.y = unit(0.01, "cm"),
     legend.margin = margin(b = -5),
-    
-    # Combined strip.text.x to avoid the error
-    # margin(t = 2) moves Yes/No closer to the plot
     strip.placement = "outside",
     strip.text.x = element_text(size = 7, face = "bold", margin = margin(t = -1, b = 0))
   ) +
   facet_grid(~PPI, scales = "free_x", space = "free", switch = "x") +
-  guides(fill = guide_legend(
-    nrow = 1,
-    byrow = TRUE,
-    override.aes = list(linewidth = 0)
-  ))
+  guides(fill = guide_legend(nrow = 1, byrow = TRUE, override.aes = list(linewidth = 0)))
 
-ggsave("../figures/Figure3B.svg", device= "svg", height = 1.9, width = 4.5)
+ggsave("../figures/Figure3B.svg", plot = p_bar, device = "svg", height = 1.9, width = 4.5)
 ```
 
+# Figure 3E: ANCOM-BC2 volcano plot
 
-#Volcano Plot
-```{r}
+```{r figure-3e}
 phyl_labels <- phyl_labels %>%
   mutate(taxon = substr(microbe, 4, nchar(microbe)))
 
 res.recist <- res.recist %>%
-  left_join(phyl_labels) %>%
-  mutate(Phylum = ifelse(q_PPIYes < 0.05 & abs(lfc_PPIYes) > 1, 
-                         ifelse(Phylum %in% phyl.ra$Phylum, Phylum, "Other"), NA),
-         taxon = gsub("_", " ", taxon),
-        Phylum = factor(Phylum, levels = c(
-    "Firmicutes", "Bacteroidota", "Actinobacteria", "Proteobacteria", "Other")),
-    label = taxon )
+  left_join(phyl_labels, by = "taxon") %>%
+  mutate(
+    Phylum = ifelse(q_PPIYes < 0.05 & abs(lfc_PPIYes) > 1,
+                    ifelse(Phylum %in% phyl.ra$Phylum, Phylum, "Other"), NA),
+    taxon = gsub("_", " ", taxon),
+    Phylum = factor(Phylum, levels = c(
+      "Firmicutes", "Bacteroidota", "Actinobacteria", "Proteobacteria", "Other"
+    )),
+    label = taxon
+  )
 
-colors <- c("#6699CC", "#999933", "#CC6677","#44AA99","#882255")
-colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2", "deeppink4") 
-```
-
-
-```{r}
+volcano_colors <- c("cyan4", "darkgoldenrod2", "darkgreen", "salmon2", "deeppink4")
 
 res_to_plot <- res.recist %>%
   filter(q_PPIYes < 1) %>%
   arrange(q_PPIYes) %>%
-  mutate(display_label = case_when( row_number() <= 21    ~ as.character(label),       
-                                    TRUE                  ~ ""))
-y_max_val <- max(-log10(res_to_plot$q_PPIYes), na.rm = TRUE)
-y_limit_plot <- y_max_val + 1.5 
+  mutate(display_label = case_when(row_number() <= 21 ~ as.character(label), TRUE ~ ""))
 
-g <- ggplot(res_to_plot, aes(x = lfc_PPIYes, y = -log10(q_PPIYes), label = display_label)) + 
-  geom_point(aes(color = Phylum), alpha = 0.7, size = 1.2) + 
-  geom_text_repel(
-    size = 2.2,                
-    max.overlaps = Inf,
-    force = 4,                 
-    box.padding = 0.3,         
-    point.padding = 0.2,
-    segment.size = 0.2,
-    direction = "both"
-  ) +
-  scale_color_manual(values = colors, na.value = "honeydew3") +
-  coord_cartesian(ylim = c(0, y_limit_plot), clip = "off") + 
+y_max_val <- max(-log10(res_to_plot$q_PPIYes), na.rm = TRUE)
+
+g <- ggplot(res_to_plot, aes(x = lfc_PPIYes, y = -log10(q_PPIYes), label = display_label)) +
+  geom_point(aes(color = Phylum), alpha = 0.7, size = 1.2) +
+  geom_text_repel(size = 2.2, max.overlaps = Inf, force = 4,
+                  box.padding = 0.3, point.padding = 0.2, segment.size = 0.2,
+                  direction = "both") +
+  scale_color_manual(values = volcano_colors, na.value = "honeydew3") +
+  coord_cartesian(ylim = c(0, y_max_val + 1.5), clip = "off") +
   theme_bw(base_size = 9) +
   labs(x = "log2foldchange", y = "-log10(adj. p)") +
   theme(
-    legend.position = "none", 
+    legend.position = "none",
     panel.grid.minor = element_blank(),
-    plot.margin = margin(t = 5, r = 10, b = 35, l = 10) 
+    plot.margin = margin(t = 5, r = 10, b = 35, l = 10)
   ) +
   annotate("segment", x = 1.5, xend = 4.5, y = -1.2, yend = -1.2,
            arrow = arrow(length = unit(0.1, "cm")), color = "black") +
-  annotate("text", x = 3, y = -1.8, 
-           label = "PPI Use", size = 3, fontface = "bold") +
+  annotate("text", x = 3, y = -1.8, label = "PPI Use", size = 3, fontface = "bold") +
   annotate("segment", x = -1.7, xend = -5.5, y = -1.2, yend = -1.2,
            arrow = arrow(length = unit(0.1, "cm")), color = "black") +
-  annotate("text", x = -3.5, y = -1.8, 
-           label = "No PPI Use", size = 3, fontface = "bold")
-
+  annotate("text", x = -3.5, y = -1.8, label = "No PPI Use", size = 3, fontface = "bold")
 
 ggsave("../figures/Figure3E.svg", g, device = "svg", height = 2.5, width = 6)
 ```
 
-# structural zero box blot 
-```{r}
+# Figure 3F: structural-zero taxa (present only in non-PPI users)
+
+```{r figure-3f}
 counts <- counts.w %>%
   pivot_longer(!microbe, names_to = "sample", values_to = "est.reads") %>%
   filter(grepl("s__", microbe)) %>%
   mutate(microbe = str_remove(microbe, "^[a-z]__"))
 
-r <- counts %>%
-  right_join(base.samps) %>%
-  left_join(demographics) %>%
+only_in_no_ppi <- struct0.recist %>%
+  filter(`structural_zero (PPI = Yes)` & !`structural_zero (PPI = No)`) %>%
+  pull(taxon)
 
-  filter(PPI == "YES",
-         microbe %in% (struct0.recist %>% filter(`structural_zero (PPI = Yes)` &
-                                                 !`structural_zero (PPI = No)`))$taxon) %>%
+r <- counts %>%
+  right_join(base.samps, by = "sample") %>%
+  left_join(demographics, by = "Patient Id") %>%
+  filter(PPI == "Yes", microbe %in% only_in_no_ppi) %>%
   select(sample, microbe, est.reads)
 
 r.top <- r %>%
   group_by(microbe) %>%
   summarize(total.nonzero = sum(est.reads > 0),
-            percent.nonzero = total.nonzero/n_distinct(sample),
-            mean.counts = mean(est.reads)) %>%
-  ungroup() 
-
-nr <- counts %>%
-  right_join(base.samps) %>%
-  left_join(demographics) %>%
-  filter(PPI == "No",
-         microbe %in% (struct0.recist %>% filter(`structural_zero (PPI = Yes)` &
-                                                 !`structural_zero (PPI = No)`))$taxon) %>%
-  select(sample, microbe, est.reads) 
-
-nr.top <- nr %>%
-  group_by(microbe) %>%
-    summarize(total.nonzero = sum(est.reads > 0),
-            percent.nonzero = total.nonzero/n_distinct(sample),
+            percent.nonzero = total.nonzero / n_distinct(sample),
             mean.counts = mean(est.reads)) %>%
   ungroup()
 
-```
+nr <- counts %>%
+  right_join(base.samps, by = "sample") %>%
+  left_join(demographics, by = "Patient Id") %>%
+  filter(PPI == "No", microbe %in% only_in_no_ppi) %>%
+  select(sample, microbe, est.reads)
 
-```{r}
+nr.top <- nr %>%
+  group_by(microbe) %>%
+  summarize(total.nonzero = sum(est.reads > 0),
+            percent.nonzero = total.nonzero / n_distinct(sample),
+            mean.counts = mean(est.reads)) %>%
+  ungroup()
+
 top10 <- rbind(r.top, nr.top) %>%
   filter(percent.nonzero > 0.15) %>%
   arrange(desc(mean.counts)) %>%
-  slice_head(n=10)
+  slice_head(n = 10)
 
 box.in <- rbind(r, nr) %>%
   filter(microbe %in% top10$microbe) %>%
-  left_join(mic.meta) %>%
-  left_join(demographics) %>%
+  left_join(mic.meta, by = "sample") %>%
+  left_join(demographics, by = "Patient Id") %>%
   dplyr::rename(taxon = microbe) %>%
-  left_join(phyl_labels) %>%
-  mutate(Phylum = ifelse(Phylum %in% phyl.ra$Phylum, Phylum, "Other"),
-         taxon = gsub("_", " ", taxon))
+  left_join(phyl_labels, by = "taxon") %>%
+  mutate(
+    Phylum = ifelse(Phylum %in% phyl.ra$Phylum, Phylum, "Other"),
+    taxon = gsub("_", " ", taxon)
+  )
 
+box_colors <- c("darkgoldenrod2", "cyan4", "salmon2")
 
-colors <- c("#999933","#6699CC","#44AA99")
-colors <- c("darkgoldenrod2", "cyan4", "salmon2")
-```
-
-
-```{r}
 box.in %>%
   ggplot(aes(x = taxon, y = log(est.reads), fill = Phylum)) +
   geom_boxplot(width = 0.5, outlier.shape = NA, alpha = 0.7) +
-  geom_jitter(size = 0.5, alpha = 0.4, width = 0.2) + 
-  scale_fill_manual(values = colors) +
+  geom_jitter(size = 0.5, alpha = 0.4, width = 0.2) +
+  scale_fill_manual(values = box_colors) +
   facet_grid(PPI ~ ., scales = "free_y", space = "free_y") +
   coord_flip() +
   theme_bw(base_size = 10) +
   theme(
-    panel.spacing = unit(0.5, "lines"), 
-    axis.text.y = element_text(face = "italic"), 
+    panel.spacing = unit(0.5, "lines"),
+    axis.text.y = element_text(face = "italic"),
     strip.text = element_text(size = 10),
     legend.position = "none",
     plot.margin = margin(t = 5, r = 10, b = 5, l = 5),
     plot.title = element_text(hjust = 0.5)
   ) +
-  labs(
-    title = "Taxa Found Only in the `No PPI Use` Group",
-    x = "",
-    y = "log(est. reads)"
-  )
+  labs(title = "Taxa Found Only in the `No PPI Use` Group", x = "", y = "log(est. reads)")
 
 ggsave("../figures/Figure3F.svg", device = "svg", height = 2, width = 6.5)
 ```
-
-
-
-
-
-
-
-
-
-

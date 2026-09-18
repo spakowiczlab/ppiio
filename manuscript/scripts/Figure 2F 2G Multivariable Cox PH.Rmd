@@ -1,5 +1,5 @@
 ---
-title: "multivariable analyses for ppi and h2b"
+title: "Figures 2F and 2G — multivariable Cox forest plots"
 author: "Anna Petouhoff"
 date: "2026-01-23"
 output: html_document
@@ -7,41 +7,41 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+```
 
+Produces **Figures 2F and 2G**: hazard ratios for PPI (2F) or H2B (2G) from
+three bivariate Cox models, each adjusting for one of: antibiotic use at ICI
+start, cancer staging, or Charlson Comorbidity Index.
+
+Clinical variables used: `ppi`, `h2b_iostart`, `abx_iostart`, `staging`,
+`cci_number`, `days`, `vitalstatus`.
+
+Cleaned Cohort 1 object: `../data/cohort1-cleaned-clinical.RDS`
+
+```{r libraries}
 library(survival)
 library(dplyr)
 library(tidyverse)
-library(tidyr)
 library(broom)
 ```
 
-```{r}
-CoRR <- read.csv("T:/Labs/Spakowicz/ppiio/data/derived/2025-02-17/CoRR_formatted.csv") %>%
-  select("ppi", "abx_iostart", "staging", "cci_number", "days", "vitalstatus", "h2b_iostart")
+```{r load}
+CoRR <- readRDS("../data/cohort1-cleaned-clinical.RDS") %>%
+  select(ppi, h2b_iostart, abx_iostart, staging, cci_number, days, vitalstatus)
 ```
 
-```{r}
-ppi_abx <- coxph(Surv(days, vitalstatus) ~ ppi +  abx_iostart, data = CoRR)
-summary(ppi_abx)
+# Figure 2F: PPI, each model adjusting for one covariate
 
-ppi_staging <-coxph(Surv(days, vitalstatus) ~ ppi +  staging, data = CoRR)
-summary(ppi_staging)
+```{r ppi-models}
+ppi_abx <- coxph(Surv(days, vitalstatus) ~ ppi + abx_iostart, data = CoRR)
+ppi_staging <- coxph(Surv(days, vitalstatus) ~ ppi + staging, data = CoRR)
+ppi_cci <- coxph(Surv(days, vitalstatus) ~ ppi + cci_number, data = CoRR)
 
-ppi_cci <- coxph(Surv(days, vitalstatus) ~ ppi +  cci_number, data = CoRR)
-summary(ppi_cci)
-```
-
-```{r}
-# extract results from each model 
 res1 <- tidy(ppi_abx, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "PPI, controlling for Abx")
 res2 <- tidy(ppi_staging, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "PPI, controlling for Staging")
 res3 <- tidy(ppi_cci, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "PPI, controlling for CCI")
 
-# combine the results 
-all_res <- bind_rows(res1, res2, res3)
-
-# filter to show only the PPI row
-ppi_only <- all_res %>%
+ppi_only <- bind_rows(res1, res2, res3) %>%
   filter(term == "ppi") %>%
   mutate(p_label = ifelse(p.value < 0.001, "p < 0.001", paste0("p = ", round(p.value, 3))))
 
@@ -49,83 +49,55 @@ ppi_fp <- ggplot(ppi_only, aes(x = estimate, y = model)) +
   geom_vline(xintercept = 1, linetype = "dashed", color = "grey50") +
   geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2, color = "slateblue") +
   geom_point(size = 3.5, color = "slateblue4") +
-  # p-values: adjusted hjust to prevent overlap with the error bar end
-  geom_text(aes(label = p_label, x = conf.high), 
-            hjust = -0.1, vjust = 0.5, size = 4) + 
-  # Increased the right-side expansion (0.6) to make room for text
-  scale_x_log10(expand = expansion(mult = c(0.1, 0.6))) + 
-  labs(x = "Hazard Ratio (Log Scale)", 
-       y = "",
+  geom_text(aes(label = p_label, x = conf.high), hjust = -0.1, vjust = 0.5, size = 4) +
+  scale_x_log10(expand = expansion(mult = c(0.1, 0.6))) +
+  labs(x = "Hazard Ratio (Log Scale)", y = "",
        title = "PPI Impact on Survival Across Bivariate Models") +
   theme_minimal() +
   theme(
     axis.title.x = element_text(size = 12, margin = margin(t = 10)),
-    axis.text.x  = element_text(size = 11),
-    axis.text.y  = element_text(size = 11, color = "black"),
-    plot.title   = element_text(size = 13, face = "bold", hjust = 0.5),
-    plot.margin  = margin(t = 10, r = 20, b = 10, l = 10), # Extra right margin
+    axis.text.x = element_text(size = 11),
+    axis.text.y = element_text(size = 11, color = "black"),
+    plot.title = element_text(size = 13, face = "bold", hjust = 0.5),
+    plot.margin = margin(t = 10, r = 20, b = 10, l = 10),
     panel.grid.minor = element_blank()
   )
 ppi_fp
 ggsave("../figures/Figure2F.svg", plot = ppi_fp, device = "svg", width = 6, height = 3)
 ```
 
+# Figure 2G: H2B, same three adjustment models
 
-
-```{r}
+```{r h2b-models}
 h2b_abx <- coxph(Surv(days, vitalstatus) ~ h2b_iostart + abx_iostart, data = CoRR)
-summary(h2b_abx)
-
 h2b_staging <- coxph(Surv(days, vitalstatus) ~ h2b_iostart + staging, data = CoRR)
-summary(h2b_staging)
-
 h2b_cci <- coxph(Surv(days, vitalstatus) ~ h2b_iostart + cci_number, data = CoRR)
-summary(h2b_cci)
-```
 
-```{r}
-# extract results from each model 
 res4 <- tidy(h2b_abx, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "H2B, controlling for Abx")
 res5 <- tidy(h2b_staging, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "H2B, controlling for Staging")
-res6 <- tidy(h2b_cci, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "H2B, controling for CCI")
+res6 <- tidy(h2b_cci, exponentiate = TRUE, conf.int = TRUE) %>% mutate(model = "H2B, controlling for CCI")
 
-# combine the results 
-all_res2 <- bind_rows(res4, res5, res6)
-
-# filter to show only the PPI row
-h2b_only <- all_res2 %>%
+h2b_only <- bind_rows(res4, res5, res6) %>%
   filter(term == "h2b_iostart") %>%
   mutate(p_label = ifelse(p.value < 0.001, "p < 0.001", paste0("p = ", round(p.value, 3))))
 
-# create a forest plot
 h2b_fp <- ggplot(h2b_only, aes(x = estimate, y = model)) +
   geom_vline(xintercept = 1, linetype = "dashed", color = "grey50") +
   geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2, color = "slateblue") +
   geom_point(size = 3.5, color = "slateblue4") +
-  # Add the p-value text
-  geom_text(aes(label = p_label, x = conf.high), 
-            hjust = -0.2, vjust = -0.5, size = 3.5) +
-  # Expand the x-axis slightly so the text doesn't get cut off
-  scale_x_log10(expand = expansion(mult = c(0.1, 0.4))) + 
-  labs(x = "Hazard Ratio (Log Scale)", 
-       y = "",
+  geom_text(aes(label = p_label, x = conf.high), hjust = -0.2, vjust = -0.5, size = 3.5) +
+  scale_x_log10(expand = expansion(mult = c(0.1, 0.4))) +
+  labs(x = "Hazard Ratio (Log Scale)", y = "",
        title = "H2B Impact on Survival Across Bivariate Models") +
-  theme_minimal()+
+  theme_minimal() +
   theme(
     axis.title.x = element_text(size = 12, margin = margin(t = 10)),
     axis.text.x = element_text(size = 11),
-    axis.text.y = element_text(size =11, color = "black"),
+    axis.text.y = element_text(size = 11, color = "black"),
     plot.title = element_text(size = 12, face = "bold", hjust = 0.5),
     plot.margin = margin(t = 10, r = 10, b = 10, l = 10),
     panel.grid.minor = element_blank()
   )
-
 h2b_fp
-
 ggsave("../figures/Figure2G.svg", plot = h2b_fp, device = "svg", width = 6, height = 3)
 ```
-
-
-
-
-
